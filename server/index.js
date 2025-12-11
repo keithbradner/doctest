@@ -8,6 +8,7 @@ require('dotenv').config();
 
 const { pool, initDB } = require('./db');
 const { parseBBCode } = require('./bbcode');
+const { generateDiff, parseDiff } = require('./diff');
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -145,6 +146,21 @@ app.put('/api/pages/:slug', authenticate, async (req, res) => {
     const { slug } = req.params;
     const { title, content, parent_id, display_order, is_expanded } = req.body;
 
+    // Get current page content for history
+    const currentPage = await pool.query('SELECT * FROM pages WHERE slug = $1', [slug]);
+
+    if (currentPage.rows.length === 0) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+
+    const previousContent = currentPage.rows[0].content;
+    const previousTitle = currentPage.rows[0].title;
+    const pageId = currentPage.rows[0].id;
+
+    // Generate diff
+    const diff = generateDiff(previousContent, content);
+
+    // Update the page
     const result = await pool.query(
       `UPDATE pages
        SET title = $1, content = $2, parent_id = $3, display_order = $4,
@@ -154,9 +170,12 @@ app.put('/api/pages/:slug', authenticate, async (req, res) => {
       [title, content, parent_id || null, display_order, is_expanded, slug]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Page not found' });
-    }
+    // Save to history
+    await pool.query(
+      `INSERT INTO page_history (page_id, title, content, previous_content, diff, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [pageId, title, content, previousContent, diff, req.userId]
+    );
 
     res.json(result.rows[0]);
   } catch (err) {
@@ -224,6 +243,110 @@ app.get('/api/images/:id', async (req, res) => {
     res.send(image.data);
   } catch (err) {
     console.error('Error fetching image:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get page history
+app.get('/api/pages/:slug/history', async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    // Get page ID
+    const pageResult = await pool.query('SELECT id FROM pages WHERE slug = $1', [slug]);
+
+    if (pageResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+
+    const pageId = pageResult.rows[0].id;
+
+    // Get history
+    const historyResult = await pool.query(
+      `SELECT h.*, u.username
+       FROM page_history h
+       LEFT JOIN users u ON h.user_id = u.id
+       WHERE h.page_id = $1
+       ORDER BY h.created_at DESC`,
+      [pageId]
+    );
+
+    // Parse diffs for structured display
+    const history = historyResult.rows.map(row => ({
+      ...row,
+      diffParsed: parseDiff(row.diff)
+    }));
+
+    res.json(history);
+  } catch (err) {
+    console.error('Error fetching history:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get page comments (Talk page)
+app.get('/api/pages/:slug/comments', async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    // Get page ID
+    const pageResult = await pool.query('SELECT id FROM pages WHERE slug = $1', [slug]);
+
+    if (pageResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+
+    const pageId = pageResult.rows[0].id;
+
+    // Get comments
+    const commentsResult = await pool.query(
+      `SELECT c.*, u.username
+       FROM page_comments c
+       LEFT JOIN users u ON c.user_id = u.id
+       WHERE c.page_id = $1
+       ORDER BY c.created_at ASC`,
+      [pageId]
+    );
+
+    res.json(commentsResult.rows);
+  } catch (err) {
+    console.error('Error fetching comments:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Add comment to Talk page (protected)
+app.post('/api/pages/:slug/comments', authenticate, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { content } = req.body;
+
+    // Get page ID
+    const pageResult = await pool.query('SELECT id FROM pages WHERE slug = $1', [slug]);
+
+    if (pageResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+
+    const pageId = pageResult.rows[0].id;
+
+    // Add comment
+    const result = await pool.query(
+      `INSERT INTO page_comments (page_id, user_id, content)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [pageId, req.userId, content]
+    );
+
+    // Get username for response
+    const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [req.userId]);
+
+    res.json({
+      ...result.rows[0],
+      username: userResult.rows[0].username
+    });
+  } catch (err) {
+    console.error('Error adding comment:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

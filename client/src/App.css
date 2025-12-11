@@ -604,3 +604,273 @@ body {
   color: #8b9cb5;
   font-size: 18px;
 }
+
+/* Page Tabs */
+.page-tabs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #3f5977;
+}
+
+.page-tab {
+  background: transparent;
+  border: none;
+  color: #8b9cb5;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.page-tab:hover {
+  color: #c7d5e0;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.page-tab.active {
+  color: #66c0f4;
+  border-bottom-color: #66c0f4;
+}
+
+/* History Page */
+.history-list {
+  margin-top: 20px;
+}
+
+.history-entry {
+  background: #2a3f5f;
+  border: 1px solid #3f5977;
+  border-radius: 3px;
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.history-meta {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.history-date {
+  color: #c7d5e0;
+  font-weight: 500;
+}
+
+.history-user {
+  color: #8b9cb5;
+  font-size: 14px;
+}
+
+.history-toggle-btn {
+  background: #66c0f4;
+  border: none;
+  color: #1b2838;
+  padding: 6px 15px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.history-toggle-btn:hover {
+  background: #7dd0ff;
+}
+
+.history-diff {
+  padding: 20px;
+}
+
+.diff-title {
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #3f5977;
+  color: #c7d5e0;
+}
+
+.diff-content {
+  background: #0e1923;
+  border: 1px solid #3f5977;
+  border-radius: 3px;
+  padding: 15px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  overflow-x: auto;
+}
+
+.diff-line {
+  display: flex;
+  padding: 2px 0;
+  line-height: 1.6;
+}
+
+.diff-marker {
+  width: 20px;
+  flex-shrink: 0;
+  font-weight: bold;
+}
+
+.diff-text {
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diff-add {
+  background: rgba(102, 192, 65, 0.1);
+  color: #a8d884;
+}
+
+.diff-add .diff-marker {
+  color: #66c041;
+}
+
+.diff-remove {
+  background: rgba(244, 67, 54, 0.1);
+  color: #ff9999;
+}
+
+.diff-remove .diff-marker {
+  color: #f44336;
+}
+
+.diff-same {
+  color: #8b9cb5;
+}
+
+.diff-info {
+  color: #66c0f4;
+  font-style: italic;
+}
+
+/* Talk/Discussion Page */
+.talk-container {
+  margin-top: 20px;
+}
+
+.comments-list {
+  margin-bottom: 30px;
+}
+
+.comment {
+  background: #2a3f5f;
+  border: 1px solid #3f5977;
+  border-radius: 3px;
+  padding: 15px 20px;
+  margin-bottom: 15px;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #3f5977;
+}
+
+.comment-author {
+  color: #66c0f4;
+  font-weight: 500;
+}
+
+.comment-date {
+  color: #8b9cb5;
+  font-size: 13px;
+}
+
+.comment-content {
+  color: #c7d5e0;
+  line-height: 1.6;
+}
+
+.comment-content code {
+  background: #0e1923;
+  border: 1px solid #3f5977;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.comment-content a {
+  color: #66c0f4;
+  text-decoration: none;
+}
+
+.comment-content a:hover {
+  text-decoration: underline;
+}
+
+.no-comments {
+  color: #8b9cb5;
+  font-style: italic;
+  padding: 20px;
+  text-align: center;
+}
+
+.add-comment {
+  background: #2a3f5f;
+  border: 1px solid #3f5977;
+  border-radius: 3px;
+  padding: 20px;
+}
+
+.add-comment h3 {
+  color: #66c0f4;
+  margin-bottom: 15px;
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.comment-textarea {
+  width: 100%;
+  background: #0e1923;
+  border: 1px solid #3f5977;
+  border-radius: 3px;
+  color: #c7d5e0;
+  padding: 12px;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  resize: vertical;
+  margin-top: 10px;
+}
+
+.comment-textarea:focus {
+  outline: none;
+  border-color: #66c0f4;
+}
+
+.submit-comment-btn {
+  background: #66c0f4;
+  border: none;
+  color: #1b2838;
+  padding: 10px 25px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 10px;
+  transition: background 0.2s;
+}
+
+.submit-comment-btn:hover:not(:disabled) {
+  background: #7dd0ff;
+}
+
+.submit-comment-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

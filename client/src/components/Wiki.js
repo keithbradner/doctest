@@ -4,6 +4,8 @@ import axios from 'axios';
 import Sidebar from './Sidebar';
 import PageView from './PageView';
 import PageEdit from './PageEdit';
+import PageHistory from './PageHistory';
+import PageTalk from './PageTalk';
 import NewPageModal from './NewPageModal';
 
 function Wiki({ username, onLogout }) {
@@ -51,6 +53,8 @@ function Wiki({ username, onLogout }) {
           <Routes>
             <Route path="/" element={<PageView slug="welcome" onUpdate={handlePageUpdated} />} />
             <Route path="/page/:slug" element={<PageViewWrapper onUpdate={handlePageUpdated} />} />
+            <Route path="/page/:slug/talk" element={<PageTalkWrapper />} />
+            <Route path="/page/:slug/history" element={<PageHistoryWrapper />} />
             <Route path="/edit/:slug" element={<PageEditWrapper onUpdate={handlePageUpdated} />} />
           </Routes>
         </div>
@@ -75,6 +79,16 @@ function PageViewWrapper({ onUpdate }) {
 function PageEditWrapper({ onUpdate }) {
   const { slug } = useParams();
   return <PageEdit slug={slug} onUpdate={onUpdate} />;
+}
+
+function PageTalkWrapper() {
+  const { slug } = useParams();
+  return <PageTalk slug={slug} />;
+}
+
+function PageHistoryWrapper() {
+  const { slug } = useParams();
+  return <PageHistory slug={slug} />;
 }
 
 export default Wiki;

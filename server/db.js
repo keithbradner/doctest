@@ -48,6 +48,31 @@ const initDB = async () => {
       )
     `);
 
+    // Create page history table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS page_history (
+        id SERIAL PRIMARY KEY,
+        page_id INTEGER REFERENCES pages(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        content TEXT NOT NULL,
+        previous_content TEXT,
+        diff TEXT,
+        user_id INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create page comments table (for Talk pages)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS page_comments (
+        id SERIAL PRIMARY KEY,
+        page_id INTEGER REFERENCES pages(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id),
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log('Database tables initialized successfully');
   } catch (err) {
     console.error('Error initializing database:', err);

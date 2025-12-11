@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
 function PageView({ slug, onUpdate }) {
   const [page, setPage] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     loadPage();
@@ -27,6 +28,10 @@ function PageView({ slug, onUpdate }) {
     navigate(`/edit/${slug}`);
   };
 
+  const getPagePath = () => {
+    return slug === 'welcome' ? '/' : `/page/${slug}`;
+  };
+
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
@@ -39,6 +44,27 @@ function PageView({ slug, onUpdate }) {
     <div className="content-inner">
       <div className="breadcrumb">
         <a href="/">Steamworks Documentation</a> &gt; {page.title}
+      </div>
+
+      <div className="page-tabs">
+        <button
+          className="page-tab active"
+          onClick={() => navigate(getPagePath())}
+        >
+          Page
+        </button>
+        <button
+          className="page-tab"
+          onClick={() => navigate(`/page/${slug}/talk`)}
+        >
+          Talk
+        </button>
+        <button
+          className="page-tab"
+          onClick={() => navigate(`/page/${slug}/history`)}
+        >
+          History
+        </button>
       </div>
 
       <div className="page-header">
