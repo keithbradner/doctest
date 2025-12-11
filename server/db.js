@@ -1,13 +1,23 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-});
+// Support both individual DB params and DATABASE_URL (for Railway)
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: {
+          rejectUnauthorized: false
+        }
+      }
+    : {
+        user: process.env.DB_USER,
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        password: process.env.DB_PASSWORD,
+        port: process.env.DB_PORT,
+      }
+);
 
 const initDB = async () => {
   const client = await pool.connect();
@@ -18,8 +28,14 @@ const initDB = async () => {
         id SERIAL PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'user',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Add role column if it doesn't exist (for existing databases)
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'user'
     `);
 
     // Create pages table
@@ -71,6 +87,27 @@ const initDB = async () => {
         content TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Create page views table (for analytics)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS page_views (
+        id SERIAL PRIMARY KEY,
+        page_id INTEGER REFERENCES pages(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id),
+        viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create index for faster analytics queries
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_page_views_page_id ON page_views(page_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_page_views_user_id ON page_views(user_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_page_views_viewed_at ON page_views(viewed_at)
     `);
 
     console.log('Database tables initialized successfully');

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
-function Sidebar({ pages, onAddPage }) {
+function Sidebar({ pages, userRole, onAddPage }) {
   const location = useLocation();
   const [expandedPages, setExpandedPages] = useState({});
 
@@ -75,6 +75,15 @@ function Sidebar({ pages, onAddPage }) {
   return (
     <div className="sidebar">
       {tree.map(page => renderNavItem(page))}
+      {userRole === 'admin' && (
+        <Link
+          to="/admin"
+          className={`nav-item ${location.pathname === '/admin' ? 'active' : ''}`}
+        >
+          <span className="nav-toggle no-children" />
+          <span>⚙️ Admin Dashboard</span>
+        </Link>
+      )}
       <button className="add-page-btn" onClick={onAddPage}>
         + New Page
       </button>

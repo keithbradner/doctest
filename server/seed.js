@@ -6,14 +6,16 @@ const seed = async () => {
     await initDB();
 
     // Check if admin user exists
-    const userCheck = await pool.query('SELECT id FROM users WHERE username = $1', ['admin']);
+    const userCheck = await pool.query('SELECT id, role FROM users WHERE username = $1', ['admin']);
 
     if (userCheck.rows.length === 0) {
       const hashedPassword = await bcrypt.hash('admin', 10);
-      await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', ['admin', hashedPassword]);
-      console.log('Admin user created (username: admin, password: admin)');
+      await pool.query('INSERT INTO users (username, password, role) VALUES ($1, $2, $3)', ['admin', hashedPassword, 'admin']);
+      console.log('Admin user created (username: admin, password: admin, role: admin)');
     } else {
-      console.log('Admin user already exists');
+      // Update existing admin user to have admin role
+      await pool.query('UPDATE users SET role = $1 WHERE username = $2', ['admin', 'admin']);
+      console.log('Admin user already exists - role updated to admin');
     }
 
     // Check if welcome page exists

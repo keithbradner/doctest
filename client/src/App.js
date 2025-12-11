@@ -11,6 +11,7 @@ function App() {
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState('');
+  const [userRole, setUserRole] = useState('user');
 
   useEffect(() => {
     checkAuth();
@@ -21,6 +22,7 @@ function App() {
       const response = await axios.get('/api/auth/check');
       setAuthenticated(response.data.authenticated);
       setUsername(response.data.username);
+      setUserRole(response.data.role || 'user');
     } catch (err) {
       setAuthenticated(false);
     } finally {
@@ -31,6 +33,7 @@ function App() {
   const handleLogin = (user) => {
     setAuthenticated(true);
     setUsername(user);
+    checkAuth(); // Re-fetch to get role
   };
 
   const handleLogout = async () => {
@@ -38,6 +41,7 @@ function App() {
       await axios.post('/api/logout');
       setAuthenticated(false);
       setUsername('');
+      setUserRole('user');
     } catch (err) {
       console.error('Logout error:', err);
     }
@@ -64,7 +68,7 @@ function App() {
           path="/*"
           element={
             authenticated ? (
-              <Wiki username={username} onLogout={handleLogout} />
+              <Wiki username={username} userRole={userRole} onLogout={handleLogout} />
             ) : (
               <Navigate to="/login" replace />
             )

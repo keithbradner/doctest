@@ -14,7 +14,29 @@ const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
+const allowedOrigins = [
+  'http://localhost:3000',
+  process.env.CLIENT_URL,
+  process.env.RAILWAY_STATIC_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.some(allowed => origin?.includes(allowed))) {
+      callback(null, true);
+    } else {
+      // In production, allow Railway domains
+      if (origin && (origin.includes('.railway.app') || origin.includes('.up.railway.app'))) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allow all for now - tighten in production
+      }
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -30,6 +52,19 @@ const authenticate = async (req, res, next) => {
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+// Admin middleware
+const requireAdmin = async (req, res, next) => {
+  try {
+    const result = await pool.query('SELECT role FROM users WHERE id = $1', [req.userId]);
+    if (result.rows.length === 0 || result.rows[0].role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+  } catch (err) {
+    return res.status(500).json({ error: 'Server error' });
   }
 };
 
@@ -77,8 +112,12 @@ app.post('/api/logout', (req, res) => {
 // Check auth status
 app.get('/api/auth/check', authenticate, async (req, res) => {
   try {
-    const result = await pool.query('SELECT username FROM users WHERE id = $1', [req.userId]);
-    res.json({ authenticated: true, username: result.rows[0].username });
+    const result = await pool.query('SELECT username, role FROM users WHERE id = $1', [req.userId]);
+    res.json({
+      authenticated: true,
+      username: result.rows[0].username,
+      role: result.rows[0].role
+    });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -98,7 +137,7 @@ app.get('/api/pages', async (req, res) => {
 });
 
 // Get single page by slug
-app.get('/api/pages/:slug', async (req, res) => {
+app.get('/api/pages/:slug', authenticate, async (req, res) => {
   try {
     const { slug } = req.params;
     const result = await pool.query('SELECT * FROM pages WHERE slug = $1', [slug]);
@@ -109,6 +148,12 @@ app.get('/api/pages/:slug', async (req, res) => {
 
     const page = result.rows[0];
     page.html = parseBBCode(page.content);
+
+    // Track page view
+    await pool.query(
+      'INSERT INTO page_views (page_id, user_id) VALUES ($1, $2)',
+      [page.id, req.userId]
+    );
 
     res.json(page);
   } catch (err) {
@@ -347,6 +392,186 @@ app.post('/api/pages/:slug/comments', authenticate, async (req, res) => {
     });
   } catch (err) {
     console.error('Error adding comment:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// User registration (for admin to create new users)
+app.post('/api/users/register', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { username, password, role } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password required' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const userRole = role || 'user';
+
+    const result = await pool.query(
+      'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id, username, role',
+      [username, hashedPassword, userRole]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+    console.error('Error creating user:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get all users (admin only)
+app.get('/api/users', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, username, role, created_at FROM users ORDER BY created_at DESC'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update user role (admin only)
+app.put('/api/users/:id/role', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    const result = await pool.query(
+      'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, role',
+      [role, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating user role:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin analytics - page views summary
+app.get('/api/admin/analytics/views', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        p.id,
+        p.slug,
+        p.title,
+        COUNT(pv.id) as view_count,
+        COUNT(DISTINCT pv.user_id) as unique_visitors,
+        MAX(pv.viewed_at) as last_viewed
+      FROM pages p
+      LEFT JOIN page_views pv ON p.id = pv.page_id
+      GROUP BY p.id, p.slug, p.title
+      ORDER BY view_count DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching analytics:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin analytics - recent page views
+app.get('/api/admin/analytics/recent-views', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        pv.id,
+        pv.viewed_at,
+        p.slug,
+        p.title,
+        u.username
+      FROM page_views pv
+      JOIN pages p ON pv.page_id = p.id
+      JOIN users u ON pv.user_id = u.id
+      ORDER BY pv.viewed_at DESC
+      LIMIT 100
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching recent views:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin analytics - edit history summary
+app.get('/api/admin/analytics/edits', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        p.id,
+        p.slug,
+        p.title,
+        COUNT(ph.id) as edit_count,
+        COUNT(DISTINCT ph.user_id) as unique_editors,
+        MAX(ph.created_at) as last_edited
+      FROM pages p
+      LEFT JOIN page_history ph ON p.id = ph.page_id
+      GROUP BY p.id, p.slug, p.title
+      ORDER BY edit_count DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching edit analytics:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin analytics - recent edits
+app.get('/api/admin/analytics/recent-edits', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        ph.id,
+        ph.created_at,
+        p.slug,
+        p.title,
+        u.username
+      FROM page_history ph
+      JOIN pages p ON ph.page_id = p.id
+      JOIN users u ON ph.user_id = u.id
+      ORDER BY ph.created_at DESC
+      LIMIT 100
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching recent edits:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin analytics - user activity
+app.get('/api/admin/analytics/user-activity', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        u.id,
+        u.username,
+        u.role,
+        COUNT(DISTINCT pv.id) as page_views,
+        COUNT(DISTINCT ph.id) as edits,
+        COUNT(DISTINCT pc.id) as comments,
+        u.created_at
+      FROM users u
+      LEFT JOIN page_views pv ON u.id = pv.user_id
+      LEFT JOIN page_history ph ON u.id = ph.user_id
+      LEFT JOIN page_comments pc ON u.id = pc.user_id
+      GROUP BY u.id, u.username, u.role, u.created_at
+      ORDER BY page_views DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching user activity:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

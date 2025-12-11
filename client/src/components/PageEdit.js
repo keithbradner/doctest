@@ -7,6 +7,7 @@ function PageEdit({ slug, onUpdate }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [activeTab, setActiveTab] = useState('edit');
+  const [splitMode, setSplitMode] = useState(false);
   const [preview, setPreview] = useState('');
   const [loading, setLoading] = useState(true);
   const textareaRef = useRef(null);
@@ -17,10 +18,10 @@ function PageEdit({ slug, onUpdate }) {
   }, [slug]);
 
   useEffect(() => {
-    if (activeTab === 'preview') {
+    if (activeTab === 'preview' || splitMode) {
       generatePreview();
     }
-  }, [activeTab, content]);
+  }, [activeTab, content, splitMode]);
 
   const loadPage = async () => {
     setLoading(true);
@@ -185,62 +186,122 @@ function PageEdit({ slug, onUpdate }) {
         />
       </div>
 
-      <div className="editor-tabs">
-        <button
-          className={`editor-tab ${activeTab === 'edit' ? 'active' : ''}`}
-          onClick={() => setActiveTab('edit')}
-        >
-          Edit
-        </button>
-        <button
-          className={`editor-tab ${activeTab === 'preview' ? 'active' : ''}`}
-          onClick={() => setActiveTab('preview')}
-        >
-          Preview
-        </button>
+      <div className="editor-controls">
+        <div className="editor-tabs">
+          <button
+            className={`editor-tab ${!splitMode && activeTab === 'edit' ? 'active' : ''}`}
+            onClick={() => { setSplitMode(false); setActiveTab('edit'); }}
+            disabled={splitMode}
+          >
+            Edit
+          </button>
+          <button
+            className={`editor-tab ${!splitMode && activeTab === 'preview' ? 'active' : ''}`}
+            onClick={() => { setSplitMode(false); setActiveTab('preview'); }}
+            disabled={splitMode}
+          >
+            Preview
+          </button>
+          <button
+            className={`editor-tab ${splitMode ? 'active' : ''}`}
+            onClick={() => setSplitMode(!splitMode)}
+          >
+            Split View
+          </button>
+        </div>
       </div>
 
-      {activeTab === 'edit' ? (
-        <div className="editor-container">
-          <div className="editor-toolbar">
-            <button className="toolbar-btn" onClick={() => insertBBCode('[h1]', '[/h1]')}>H1</button>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[h2]', '[/h2]')}>H2</button>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[h3]', '[/h3]')}>H3</button>
-            <div className="toolbar-separator"></div>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[b]', '[/b]')}><strong>B</strong></button>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[i]', '[/i]')}><em>I</em></button>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[u]', '[/u]')}><u>U</u></button>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[strike]', '[/strike]')}>S</button>
-            <div className="toolbar-separator"></div>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[url=]', '[/url]')}>Link</button>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[list]\n[*]', '\n[/list]')}>List</button>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[olist]\n[*]', '\n[/olist]')}>OList</button>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[code]', '[/code]')}>Code</button>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[quote]', '[/quote]')}>Quote</button>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[spoiler]', '[/spoiler]')}>Spoiler</button>
-            <button className="toolbar-btn" onClick={() => insertBBCode('[hr]')}>HR</button>
-            <div className="toolbar-separator"></div>
-            <label className="toolbar-btn image-upload-btn">
-              Upload Image
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                style={{ display: 'none' }}
+      {splitMode ? (
+        <div className="editor-split-view">
+          <div className="editor-split-pane">
+            <h3 className="split-pane-title">Editor</h3>
+            <div className="editor-container">
+              <div className="editor-toolbar">
+                <button className="toolbar-btn" onClick={() => insertBBCode('[h1]', '[/h1]')}>H1</button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[h2]', '[/h2]')}>H2</button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[h3]', '[/h3]')}>H3</button>
+                <div className="toolbar-separator"></div>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[b]', '[/b]')}><strong>B</strong></button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[i]', '[/i]')}><em>I</em></button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[u]', '[/u]')}><u>U</u></button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[strike]', '[/strike]')}>S</button>
+                <div className="toolbar-separator"></div>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[url=]', '[/url]')}>Link</button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[list]\n[*]', '\n[/list]')}>List</button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[olist]\n[*]', '\n[/olist]')}>OList</button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[code]', '[/code]')}>Code</button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[quote]', '[/quote]')}>Quote</button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[spoiler]', '[/spoiler]')}>Spoiler</button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[hr]')}>HR</button>
+                <div className="toolbar-separator"></div>
+                <label className="toolbar-btn image-upload-btn">
+                  Upload Image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              </div>
+              <textarea
+                ref={textareaRef}
+                className="editor-textarea split-editor-textarea"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
               />
-            </label>
+            </div>
           </div>
-          <textarea
-            ref={textareaRef}
-            className="editor-textarea"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-          />
+          <div className="editor-split-pane">
+            <h3 className="split-pane-title">Preview</h3>
+            <div className="preview-content split-preview-content">
+              <div className="page-content" dangerouslySetInnerHTML={{ __html: preview }} />
+            </div>
+          </div>
         </div>
       ) : (
-        <div className="preview-content">
-          <div className="page-content" dangerouslySetInnerHTML={{ __html: preview }} />
-        </div>
+        activeTab === 'edit' ? (
+          <div className="editor-container">
+            <div className="editor-toolbar">
+              <button className="toolbar-btn" onClick={() => insertBBCode('[h1]', '[/h1]')}>H1</button>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[h2]', '[/h2]')}>H2</button>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[h3]', '[/h3]')}>H3</button>
+              <div className="toolbar-separator"></div>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[b]', '[/b]')}><strong>B</strong></button>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[i]', '[/i]')}><em>I</em></button>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[u]', '[/u]')}><u>U</u></button>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[strike]', '[/strike]')}>S</button>
+              <div className="toolbar-separator"></div>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[url=]', '[/url]')}>Link</button>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[list]\n[*]', '\n[/list]')}>List</button>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[olist]\n[*]', '\n[/olist]')}>OList</button>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[code]', '[/code]')}>Code</button>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[quote]', '[/quote]')}>Quote</button>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[spoiler]', '[/spoiler]')}>Spoiler</button>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[hr]')}>HR</button>
+              <div className="toolbar-separator"></div>
+              <label className="toolbar-btn image-upload-btn">
+                Upload Image
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+            <textarea
+              ref={textareaRef}
+              className="editor-textarea"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+            />
+          </div>
+        ) : (
+          <div className="preview-content">
+            <div className="page-content" dangerouslySetInnerHTML={{ __html: preview }} />
+          </div>
+        )
       )}
     </div>
   );

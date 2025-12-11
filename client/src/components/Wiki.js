@@ -6,9 +6,10 @@ import PageView from './PageView';
 import PageEdit from './PageEdit';
 import PageHistory from './PageHistory';
 import PageTalk from './PageTalk';
+import AdminDashboard from './AdminDashboard';
 import NewPageModal from './NewPageModal';
 
-function Wiki({ username, onLogout }) {
+function Wiki({ username, userRole, onLogout }) {
   const [pages, setPages] = useState([]);
   const [showNewPageModal, setShowNewPageModal] = useState(false);
 
@@ -47,7 +48,7 @@ function Wiki({ username, onLogout }) {
       </div>
 
       <div className="app-container">
-        <Sidebar pages={pages} onAddPage={() => setShowNewPageModal(true)} />
+        <Sidebar pages={pages} userRole={userRole} onAddPage={() => setShowNewPageModal(true)} />
 
         <div className="content">
           <Routes>
@@ -56,6 +57,7 @@ function Wiki({ username, onLogout }) {
             <Route path="/page/:slug/talk" element={<PageTalkWrapper />} />
             <Route path="/page/:slug/history" element={<PageHistoryWrapper />} />
             <Route path="/edit/:slug" element={<PageEditWrapper onUpdate={handlePageUpdated} />} />
+            {userRole === 'admin' && <Route path="/admin" element={<AdminDashboard />} />}
           </Routes>
         </div>
       </div>
