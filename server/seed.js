@@ -1,0 +1,85 @@
+const bcrypt = require('bcryptjs');
+const { pool, initDB } = require('./db');
+
+const seed = async () => {
+  try {
+    await initDB();
+
+    // Check if admin user exists
+    const userCheck = await pool.query('SELECT id FROM users WHERE username = $1', ['admin']);
+
+    if (userCheck.rows.length === 0) {
+      const hashedPassword = await bcrypt.hash('admin', 10);
+      await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', ['admin', hashedPassword]);
+      console.log('Admin user created (username: admin, password: admin)');
+    } else {
+      console.log('Admin user already exists');
+    }
+
+    // Check if welcome page exists
+    const pageCheck = await pool.query('SELECT id FROM pages WHERE slug = $1', ['welcome']);
+
+    if (pageCheck.rows.length === 0) {
+      const welcomeContent = `[h1]Welcome to BBCode Wiki[/h1]
+
+This is a BBCode-based wiki editor with a layout inspired by Steamworks Documentation.
+
+[h2]Getting Started[/h2]
+
+This wiki supports full BBCode formatting. Here are some examples:
+
+[h3]Text Formatting[/h3]
+[list]
+[*][b]Bold text[/b] - Use [noparse][b]text[/b][/noparse]
+[*][i]Italic text[/i] - Use [noparse][i]text[/i][/noparse]
+[*][u]Underlined text[/u] - Use [noparse][u]text[/u][/noparse]
+[*][strike]Strikethrough text[/strike] - Use [noparse][strike]text[/strike][/noparse]
+[/list]
+
+[h3]Links and Images[/h3]
+You can add links: [url=https://example.com]Example Website[/url]
+
+And images using the upload feature and [noparse][img]url[/img][/noparse] tag.
+
+[h3]Lists[/h3]
+Ordered lists:
+[olist]
+[*]First item
+[*]Second item
+[*]Third item
+[/olist]
+
+[h3]Code Blocks[/h3]
+[code]function example() {
+  console.log("Hello, world!");
+}[/code]
+
+[h3]Quotes[/h3]
+[quote=John Doe]This is a quoted text with attribution.[/quote]
+
+[hr]
+
+[b]Login credentials:[/b]
+Username: admin
+Password: admin
+
+[i]You can now edit this page or create new pages using the navigation menu![/i]`;
+
+      await pool.query(
+        'INSERT INTO pages (slug, title, content, parent_id, display_order) VALUES ($1, $2, $3, $4, $5)',
+        ['welcome', 'Welcome', welcomeContent, null, 0]
+      );
+      console.log('Welcome page created');
+    } else {
+      console.log('Welcome page already exists');
+    }
+
+    console.log('Database seeded successfully!');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error seeding database:', err);
+    process.exit(1);
+  }
+};
+
+seed();
