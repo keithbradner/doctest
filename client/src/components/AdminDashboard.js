@@ -10,6 +10,8 @@ function AdminDashboard() {
   const [userActivity, setUserActivity] = useState([]);
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' });
   const [loading, setLoading] = useState(true);
+  const [passwordChange, setPasswordChange] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [adminPasswordChange, setAdminPasswordChange] = useState({});
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -69,6 +71,57 @@ function AdminDashboard() {
     }
   };
 
+  const handleChangeOwnPassword = async (e) => {
+    e.preventDefault();
+
+    if (passwordChange.newPassword !== passwordChange.confirmPassword) {
+      alert('New passwords do not match');
+      return;
+    }
+
+    if (passwordChange.newPassword.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+
+    try {
+      await axios.put('/api/users/change-password', {
+        currentPassword: passwordChange.currentPassword,
+        newPassword: passwordChange.newPassword
+      });
+      setPasswordChange({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      alert('Password changed successfully');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to change password');
+    }
+  };
+
+  const handleAdminChangePassword = async (userId, username) => {
+    const newPassword = adminPasswordChange[userId];
+
+    if (!newPassword) {
+      alert('Please enter a new password');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+
+    if (!window.confirm(`Change password for user "${username}"?`)) {
+      return;
+    }
+
+    try {
+      await axios.put(`/api/users/${userId}/password`, { newPassword });
+      setAdminPasswordChange({ ...adminPasswordChange, [userId]: '' });
+      alert('Password changed successfully');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to change password');
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
   };
@@ -105,6 +158,12 @@ function AdminDashboard() {
           onClick={() => setActiveTab('users')}
         >
           Users
+        </button>
+        <button
+          className={`admin-tab ${activeTab === 'account' ? 'active' : ''}`}
+          onClick={() => setActiveTab('account')}
+        >
+          Account
         </button>
       </div>
 
@@ -303,7 +362,7 @@ function AdminDashboard() {
                   <th>Edits</th>
                   <th>Comments</th>
                   <th>Member Since</th>
-                  <th>Actions</th>
+                  <th>Change Password</th>
                 </tr>
               </thead>
               <tbody>
@@ -325,12 +384,67 @@ function AdminDashboard() {
                     <td>{user.comments}</td>
                     <td>{formatDate(user.created_at)}</td>
                     <td>
-                      <button className="view-activity-btn" disabled>View Details</button>
+                      <div className="password-change-inline">
+                        <input
+                          type="password"
+                          placeholder="New password"
+                          value={adminPasswordChange[user.id] || ''}
+                          onChange={(e) => setAdminPasswordChange({...adminPasswordChange, [user.id]: e.target.value})}
+                          className="password-input"
+                        />
+                        <button
+                          className="change-password-btn"
+                          onClick={() => handleAdminChangePassword(user.id, user.username)}
+                        >
+                          Change
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'account' && (
+        <div>
+          <div className="admin-section">
+            <h2>Change Your Password</h2>
+            <form onSubmit={handleChangeOwnPassword} className="password-change-form">
+              <div className="form-group">
+                <label>Current Password</label>
+                <input
+                  type="password"
+                  value={passwordChange.currentPassword}
+                  onChange={(e) => setPasswordChange({...passwordChange, currentPassword: e.target.value})}
+                  required
+                  placeholder="Enter your current password"
+                />
+              </div>
+              <div className="form-group">
+                <label>New Password</label>
+                <input
+                  type="password"
+                  value={passwordChange.newPassword}
+                  onChange={(e) => setPasswordChange({...passwordChange, newPassword: e.target.value})}
+                  required
+                  placeholder="At least 6 characters"
+                />
+              </div>
+              <div className="form-group">
+                <label>Confirm New Password</label>
+                <input
+                  type="password"
+                  value={passwordChange.confirmPassword}
+                  onChange={(e) => setPasswordChange({...passwordChange, confirmPassword: e.target.value})}
+                  required
+                  placeholder="Re-enter new password"
+                />
+              </div>
+              <button type="submit" className="save-btn">Change Password</button>
+            </form>
           </div>
         </div>
       )}
