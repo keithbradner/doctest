@@ -80,10 +80,28 @@ function PageEdit({ slug, onUpdate }) {
     // Noparse
     html = html.replace(/\[noparse\](.*?)\[\/noparse\]/gs, '$1');
 
-      // Newlines
-      html = html.replace(/\n/g, '<br>');
+    // Convert newlines intelligently (same as server-side parser):
+    // - Remove newlines immediately after opening or before closing block tags
+    html = html.replace(/(<\/(h[123]|ul|ol|blockquote|pre|hr)>)\n+/g, '$1');
+    html = html.replace(/\n+(<(h[123]|ul|ol|blockquote|pre|hr|li)>)/g, '$1');
+    html = html.replace(/(<hr \/>)\n+/g, '$1');
 
-      setPreview(html);
+    // Convert remaining double newlines to paragraph breaks
+    html = html.replace(/\n\n+/g, '</p><p>');
+
+    // Convert single newlines to <br>
+    html = html.replace(/\n/g, '<br>');
+
+    // Wrap in paragraphs if not already in block elements
+    if (!html.match(/^<(h[123]|ul|ol|blockquote|pre|p)/)) {
+      html = '<p>' + html + '</p>';
+    }
+
+    // Clean up empty paragraphs
+    html = html.replace(/<p><\/p>/g, '');
+    html = html.replace(/<p>\s*<\/p>/g, '');
+
+    setPreview(html);
     };
 
     if (activeTab === 'preview' || splitMode) {
