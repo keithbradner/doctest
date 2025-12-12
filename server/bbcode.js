@@ -82,8 +82,28 @@ const parseBBCode = (text) => {
     html = html.replace(`___NOPARSE_${index}___`, content);
   });
 
-  // Convert newlines to <br> (but not inside block elements)
+  // Convert newlines to <br>, but intelligently:
+  // - Remove newlines immediately after opening or before closing block tags
+  // - Convert double newlines to paragraph breaks
+  // - Convert single newlines to <br> only within inline content
+  html = html.replace(/(<\/(h[123]|ul|ol|blockquote|pre|hr)>)\n+/g, '$1');
+  html = html.replace(/\n+(<(h[123]|ul|ol|blockquote|pre|hr|li)>)/g, '$1');
+  html = html.replace(/(<hr \/>)\n+/g, '$1');
+
+  // Convert remaining double newlines to paragraph breaks
+  html = html.replace(/\n\n+/g, '</p><p>');
+
+  // Convert single newlines to <br>
   html = html.replace(/\n/g, '<br>');
+
+  // Wrap in paragraphs if not already in block elements
+  if (!html.match(/^<(h[123]|ul|ol|blockquote|pre|p)/)) {
+    html = '<p>' + html + '</p>';
+  }
+
+  // Clean up empty paragraphs
+  html = html.replace(/<p><\/p>/g, '');
+  html = html.replace(/<p>\s*<\/p>/g, '');
 
   return html;
 };
