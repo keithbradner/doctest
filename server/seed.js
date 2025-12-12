@@ -1,9 +1,9 @@
 const bcrypt = require('bcryptjs');
 const { pool, initDB } = require('./db');
 
-const seed = async () => {
+const seedDatabase = async () => {
   try {
-    await initDB();
+    console.log('Checking if database needs seeding...');
 
     // Check if admin user exists
     const userCheck = await pool.query('SELECT id, role FROM users WHERE username = $1', ['admin']);
@@ -11,11 +11,11 @@ const seed = async () => {
     if (userCheck.rows.length === 0) {
       const hashedPassword = await bcrypt.hash('admin', 10);
       await pool.query('INSERT INTO users (username, password, role) VALUES ($1, $2, $3)', ['admin', hashedPassword, 'admin']);
-      console.log('Admin user created (username: admin, password: admin, role: admin)');
+      console.log('✓ Admin user created (username: admin, password: admin, role: admin)');
     } else {
       // Update existing admin user to have admin role
       await pool.query('UPDATE users SET role = $1 WHERE username = $2', ['admin', 'admin']);
-      console.log('Admin user already exists - role updated to admin');
+      console.log('✓ Admin user verified');
     }
 
     // Check if welcome page exists
@@ -71,17 +71,32 @@ Password: admin
         'INSERT INTO pages (slug, title, content, parent_id, display_order) VALUES ($1, $2, $3, $4, $5)',
         ['welcome', 'Welcome', welcomeContent, null, 0]
       );
-      console.log('Welcome page created');
+      console.log('✓ Welcome page created');
     } else {
-      console.log('Welcome page already exists');
+      console.log('✓ Welcome page verified');
     }
 
-    console.log('Database seeded successfully!');
-    process.exit(0);
+    console.log('✓ Database seeded successfully!');
   } catch (err) {
     console.error('Error seeding database:', err);
-    process.exit(1);
+    throw err;
   }
 };
 
-seed();
+// Allow running directly with node server/seed.js
+if (require.main === module) {
+  (async () => {
+    try {
+      await initDB();
+      await seedDatabase();
+      console.log('\nDatabase ready!');
+      process.exit(0);
+    } catch (err) {
+      console.error('Seed failed:', err);
+      process.exit(1);
+    }
+  })();
+}
+
+module.exports = { seedDatabase };
+

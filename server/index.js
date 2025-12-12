@@ -9,6 +9,7 @@ require('dotenv').config();
 const { pool, initDB } = require('./db');
 const { parseBBCode } = require('./bbcode');
 const { generateDiff, parseDiff } = require('./diff');
+const { seedDatabase } = require('./seed');
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -580,9 +581,14 @@ app.get('/api/admin/analytics/user-activity', authenticate, requireAdmin, async 
 const PORT = process.env.PORT || 3001;
 
 initDB()
-  .then(() => {
+  .then(async () => {
+    // Automatically seed database if needed
+    await seedDatabase();
+
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`\n🚀 Server running on port ${PORT}`);
+      console.log(`📝 Wiki available at http://localhost:${PORT}`);
+      console.log(`👤 Login with admin/admin\n`);
     });
   })
   .catch((err) => {
