@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 function AdminDashboard() {
@@ -8,15 +8,10 @@ function AdminDashboard() {
   const [recentViews, setRecentViews] = useState([]);
   const [recentEdits, setRecentEdits] = useState([]);
   const [userActivity, setUserActivity] = useState([]);
-  const [users, setUsers] = useState([]);
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, [activeTab]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       if (activeTab === 'overview' || activeTab === 'views') {
@@ -36,9 +31,6 @@ function AdminDashboard() {
       }
 
       if (activeTab === 'users') {
-        const usersRes = await axios.get('/api/users');
-        setUsers(usersRes.data);
-
         const activityRes = await axios.get('/api/admin/analytics/user-activity');
         setUserActivity(activityRes.data);
       }
@@ -50,7 +42,11 @@ function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
