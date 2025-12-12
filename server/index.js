@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const path = require('path');
 require('dotenv').config();
 
 const { pool, initDB } = require('./db');
@@ -40,6 +41,9 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Serve static files from React app build folder
+app.use(express.static(path.join(__dirname, '../client/build')));
 
 // Auth middleware
 const authenticate = async (req, res, next) => {
@@ -575,6 +579,12 @@ app.get('/api/admin/analytics/user-activity', authenticate, requireAdmin, async 
     console.error('Error fetching user activity:', err);
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+// Handle React routing - return all requests to React app
+// This must be after all API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
 });
 
 // Initialize database and start server
