@@ -11,20 +11,20 @@ function PageTalk({ slug }) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const loadComments = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get(`/api/pages/${slug}/comments`);
+        setComments(response.data);
+      } catch (err) {
+        console.error('Error loading comments:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadComments();
   }, [slug]);
-
-  const loadComments = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`/api/pages/${slug}/comments`);
-      setComments(response.data);
-    } catch (err) {
-      console.error('Error loading comments:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();

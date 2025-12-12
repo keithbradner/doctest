@@ -1,28 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 function PageView({ slug, onUpdate }) {
   const [page, setPage] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
+    const loadPage = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get(`/api/pages/${slug}`);
+        setPage(response.data);
+      } catch (err) {
+        console.error('Error loading page:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadPage();
   }, [slug]);
-
-  const loadPage = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`/api/pages/${slug}`);
-      setPage(response.data);
-    } catch (err) {
-      console.error('Error loading page:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleEdit = () => {
     navigate(`/edit/${slug}`);

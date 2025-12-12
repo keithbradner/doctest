@@ -9,20 +9,20 @@ function PageHistory({ slug }) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const loadHistory = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get(`/api/pages/${slug}/history`);
+        setHistory(response.data);
+      } catch (err) {
+        console.error('Error loading history:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadHistory();
   }, [slug]);
-
-  const loadHistory = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`/api/pages/${slug}/history`);
-      setHistory(response.data);
-    } catch (err) {
-      console.error('Error loading history:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const toggleDiff = (historyId) => {
     setExpandedDiffs(prev => ({

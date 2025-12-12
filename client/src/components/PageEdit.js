@@ -14,30 +14,25 @@ function PageEdit({ slug, onUpdate }) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const loadPage = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get(`/api/pages/${slug}`);
+        setPage(response.data);
+        setTitle(response.data.title);
+        setContent(response.data.content);
+      } catch (err) {
+        console.error('Error loading page:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadPage();
   }, [slug]);
 
   useEffect(() => {
-    if (activeTab === 'preview' || splitMode) {
-      generatePreview();
-    }
-  }, [activeTab, content, splitMode]);
-
-  const loadPage = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`/api/pages/${slug}`);
-      setPage(response.data);
-      setTitle(response.data.title);
-      setContent(response.data.content);
-    } catch (err) {
-      console.error('Error loading page:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generatePreview = () => {
+    const generatePreview = () => {
     // Simple client-side BBCode parsing for preview
     let html = content;
 
@@ -85,11 +80,16 @@ function PageEdit({ slug, onUpdate }) {
     // Noparse
     html = html.replace(/\[noparse\](.*?)\[\/noparse\]/gs, '$1');
 
-    // Newlines
-    html = html.replace(/\n/g, '<br>');
+      // Newlines
+      html = html.replace(/\n/g, '<br>');
 
-    setPreview(html);
-  };
+      setPreview(html);
+    };
+
+    if (activeTab === 'preview' || splitMode) {
+      generatePreview();
+    }
+  }, [activeTab, content, splitMode]);
 
   const insertBBCode = (openTag, closeTag = null) => {
     const textarea = textareaRef.current;
