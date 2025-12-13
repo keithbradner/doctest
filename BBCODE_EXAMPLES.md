@@ -108,6 +108,24 @@ BBCode tags can be nested (except within code/noparse):
 
 ## Security Features
 
+**All HTML is escaped before BBCode processing!** This means users CANNOT inject raw HTML or scripts.
+
+### Raw HTML is Escaped
+```
+Normal text <script>alert("XSS")</script> more text
+```
+**Result:** The `<script>` tag is escaped to `&lt;script&gt;` and displayed as text
+
+```
+<img src=x onerror=alert(1)>
+```
+**Result:** The `<img>` tag is escaped and displayed as text
+
+```
+[b]BBCode bold[/b] <b>HTML bold doesn't work</b>
+```
+**Result:** Only the BBCode bold is processed, the HTML `<b>` tag is escaped
+
 ### XSS Prevention in Code Blocks
 ```
 [code]<script>alert("XSS")</script>[/code]
