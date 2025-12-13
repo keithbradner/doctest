@@ -10,6 +10,8 @@
     "build": "cd client && npm install && npm run build",
     "seed": "node server/seed.js",
     "test": "node tests/api.test.js",
+    "test:bbcode": "node tests/bbcode.test.js",
+    "test:all": "npm run test:bbcode && npm run test",
     "start": "node server/index.js",
     "postinstall": "cd client && npm install",
     "heroku-postbuild": "npm run build"

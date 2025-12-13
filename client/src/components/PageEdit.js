@@ -36,6 +36,36 @@ function PageEdit({ slug, onUpdate }) {
     // Simple client-side BBCode parsing for preview
     let html = content;
 
+    // Helper function to escape HTML
+    const escapeHtml = (str) => {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return str.replace(/[&<>"']/g, (m) => map[m]);
+    };
+
+    // Process [noparse] blocks FIRST - preserve them exactly as-is
+    const noparseBlocks = [];
+    html = html.replace(/\[noparse\](.*?)\[\/noparse\]/gs, (match, content) => {
+      const index = noparseBlocks.length;
+      noparseBlocks.push(escapeHtml(content));
+      return `___NOPARSE_${index}___`;
+    });
+
+    // Process [code] blocks SECOND - preserve formatting and escape HTML
+    const codeBlocks = [];
+    html = html.replace(/\[code\](.*?)\[\/code\]/gs, (match, content) => {
+      const index = codeBlocks.length;
+      codeBlocks.push(`<pre><code>${escapeHtml(content)}</code></pre>`);
+      return `___CODE_${index}___`;
+    });
+
+    // Now process all other BBCode (which won't affect the protected blocks above)
+
     // Headers
     html = html.replace(/\[h1\](.*?)\[\/h1\]/gi, '<h1>$1</h1>');
     html = html.replace(/\[h2\](.*?)\[\/h2\]/gi, '<h2>$1</h2>');
@@ -74,11 +104,15 @@ function PageEdit({ slug, onUpdate }) {
       return `<ol>${listItems}</ol>`;
     });
 
-    // Code
-    html = html.replace(/\[code\](.*?)\[\/code\]/gs, '<pre><code>$1</code></pre>');
+    // Restore code blocks
+    codeBlocks.forEach((code, index) => {
+      html = html.replace(`___CODE_${index}___`, code);
+    });
 
-    // Noparse
-    html = html.replace(/\[noparse\](.*?)\[\/noparse\]/gs, '$1');
+    // Restore noparse blocks
+    noparseBlocks.forEach((content, index) => {
+      html = html.replace(`___NOPARSE_${index}___`, content);
+    });
 
     // Convert newlines intelligently (same as server-side parser):
     // - Remove newlines immediately after opening or before closing block tags
