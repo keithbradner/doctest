@@ -27,6 +27,22 @@ function PageView({ slug, onUpdate }) {
     navigate(`/edit/${slug}`);
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm(`Are you sure you want to delete "${page.title}"? This page can be restored by an admin.`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/pages/${slug}`);
+      alert('Page deleted successfully');
+      navigate('/');
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      console.error('Error deleting page:', err);
+      alert('Failed to delete page');
+    }
+  };
+
   const getPagePath = () => {
     return slug === 'welcome' ? '/' : `/page/${slug}`;
   };
@@ -68,9 +84,14 @@ function PageView({ slug, onUpdate }) {
 
       <div className="page-header">
         <h1 className="page-title">{page.title}</h1>
-        <button className="edit-btn" onClick={handleEdit}>
-          Edit Page
-        </button>
+        <div>
+          <button className="edit-btn" onClick={handleEdit}>
+            Edit Page
+          </button>
+          <button className="delete-btn" onClick={handleDelete} style={{ marginLeft: '10px' }}>
+            Delete Page
+          </button>
+        </div>
       </div>
 
       <div

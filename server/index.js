@@ -153,7 +153,7 @@ app.get('/api/auth/check', authenticate, async (req, res) => {
 app.get('/api/pages', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, slug, title, parent_id, display_order, is_expanded FROM pages ORDER BY display_order, id'
+      'SELECT id, slug, title, parent_id, display_order, is_expanded FROM pages WHERE deleted_at IS NULL ORDER BY display_order, id'
     );
     res.json(result.rows);
   } catch (err) {
@@ -166,7 +166,7 @@ app.get('/api/pages', async (req, res) => {
 app.get('/api/pages/:slug', authenticate, async (req, res) => {
   try {
     const { slug } = req.params;
-    const result = await pool.query('SELECT * FROM pages WHERE slug = $1', [slug]);
+    const result = await pool.query('SELECT * FROM pages WHERE slug = $1 AND deleted_at IS NULL', [slug]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Page not found' });
@@ -193,6 +193,25 @@ app.post('/api/pages', authenticate, async (req, res) => {
   try {
     const { slug, title, content, parent_id, display_order } = req.body;
 
+    // Check if a deleted page with this slug exists
+    const existingPage = await pool.query(
+      'SELECT * FROM pages WHERE slug = $1',
+      [slug]
+    );
+
+    if (existingPage.rows.length > 0 && existingPage.rows[0].deleted_at) {
+      // Restore the deleted page with new content
+      const result = await pool.query(
+        `UPDATE pages
+         SET title = $1, content = $2, parent_id = $3, display_order = $4,
+             deleted_at = NULL, updated_at = CURRENT_TIMESTAMP
+         WHERE slug = $5
+         RETURNING *`,
+        [title, content, parent_id || null, display_order || 0, slug]
+      );
+      return res.json(result.rows[0]);
+    }
+
     const result = await pool.query(
       `INSERT INTO pages (slug, title, content, parent_id, display_order)
        VALUES ($1, $2, $3, $4, $5)
@@ -218,7 +237,7 @@ app.put('/api/pages/:slug', authenticate, async (req, res) => {
     const { title, content, parent_id, display_order, is_expanded } = req.body;
 
     // Get current page content for history
-    const currentPage = await pool.query('SELECT * FROM pages WHERE slug = $1', [slug]);
+    const currentPage = await pool.query('SELECT * FROM pages WHERE slug = $1 AND deleted_at IS NULL', [slug]);
 
     if (currentPage.rows.length === 0) {
       return res.status(404).json({ error: 'Page not found' });
@@ -255,12 +274,15 @@ app.put('/api/pages/:slug', authenticate, async (req, res) => {
   }
 });
 
-// Delete page (protected)
+// Delete page (soft delete - protected)
 app.delete('/api/pages/:slug', authenticate, async (req, res) => {
   try {
     const { slug } = req.params;
 
-    const result = await pool.query('DELETE FROM pages WHERE slug = $1 RETURNING id', [slug]);
+    const result = await pool.query(
+      'UPDATE pages SET deleted_at = CURRENT_TIMESTAMP WHERE slug = $1 AND deleted_at IS NULL RETURNING id',
+      [slug]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Page not found' });
@@ -568,6 +590,58 @@ app.put('/api/users/:id/password', authenticate, requireAdmin, async (req, res) 
     res.json({ success: true, message: 'Password changed successfully', user: result.rows[0] });
   } catch (err) {
     console.error('Error changing user password:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin - get deleted pages
+app.get('/api/admin/deleted-pages', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, slug, title, deleted_at FROM pages WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching deleted pages:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin - restore deleted page
+app.post('/api/admin/pages/:slug/restore', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const result = await pool.query(
+      'UPDATE pages SET deleted_at = NULL WHERE slug = $1 AND deleted_at IS NOT NULL RETURNING *',
+      [slug]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Deleted page not found' });
+    }
+
+    res.json({ success: true, page: result.rows[0] });
+  } catch (err) {
+    console.error('Error restoring page:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin - permanently delete page (hard delete)
+app.delete('/api/admin/pages/:slug/permanent', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const result = await pool.query('DELETE FROM pages WHERE slug = $1 RETURNING id', [slug]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error permanently deleting page:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

@@ -236,6 +236,38 @@ body {
   background: #6d8ab0;
 }
 
+.delete-btn, .delete-permanent-btn {
+  background: #c74343;
+  border: none;
+  color: white;
+  padding: 8px 20px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.delete-btn:hover, .delete-permanent-btn:hover {
+  background: #d85656;
+}
+
+.restore-btn {
+  background: #5c9e54;
+  border: none;
+  color: white;
+  padding: 8px 20px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.restore-btn:hover {
+  background: #6db863;
+}
+
 .page-content {
   line-height: 1.3em;
   color: rgb(172, 181, 190);

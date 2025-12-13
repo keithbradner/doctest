@@ -49,8 +49,14 @@ const initDB = async () => {
         display_order INTEGER DEFAULT 0,
         is_expanded BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        deleted_at TIMESTAMP
       )
+    `);
+
+    // Add deleted_at column if it doesn't exist (for existing databases)
+    await client.query(`
+      ALTER TABLE pages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP
     `);
 
     // Create images table

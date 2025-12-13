@@ -8,6 +8,7 @@ function AdminDashboard() {
   const [recentViews, setRecentViews] = useState([]);
   const [recentEdits, setRecentEdits] = useState([]);
   const [userActivity, setUserActivity] = useState([]);
+  const [deletedPages, setDeletedPages] = useState([]);
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' });
   const [loading, setLoading] = useState(true);
   const [passwordChange, setPasswordChange] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -35,6 +36,11 @@ function AdminDashboard() {
       if (activeTab === 'users') {
         const activityRes = await axios.get('/api/admin/analytics/user-activity');
         setUserActivity(activityRes.data);
+      }
+
+      if (activeTab === 'deleted') {
+        const deletedRes = await axios.get('/api/admin/deleted-pages');
+        setDeletedPages(deletedRes.data);
       }
     } catch (err) {
       console.error('Error loading admin data:', err);
@@ -122,6 +128,34 @@ function AdminDashboard() {
     }
   };
 
+  const handleRestorePage = async (slug) => {
+    if (!window.confirm('Are you sure you want to restore this page?')) {
+      return;
+    }
+
+    try {
+      await axios.post(`/api/admin/pages/${slug}/restore`);
+      alert('Page restored successfully');
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to restore page');
+    }
+  };
+
+  const handlePermanentDelete = async (slug, title) => {
+    if (!window.confirm(`Are you sure you want to PERMANENTLY delete "${title}"? This action cannot be undone and all history will be lost!`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/admin/pages/${slug}/permanent`);
+      alert('Page permanently deleted');
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to permanently delete page');
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
   };
@@ -158,6 +192,12 @@ function AdminDashboard() {
           onClick={() => setActiveTab('users')}
         >
           Users
+        </button>
+        <button
+          className={`admin-tab ${activeTab === 'deleted' ? 'active' : ''}`}
+          onClick={() => setActiveTab('deleted')}
+        >
+          Deleted Pages
         </button>
         <button
           className={`admin-tab ${activeTab === 'account' ? 'active' : ''}`}
@@ -404,6 +444,52 @@ function AdminDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'deleted' && (
+        <div>
+          <div className="admin-section">
+            <h2>Deleted Pages</h2>
+            {deletedPages.length === 0 ? (
+              <p>No deleted pages found.</p>
+            ) : (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Slug</th>
+                    <th>Deleted At</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deletedPages.map(page => (
+                    <tr key={page.id}>
+                      <td>{page.title}</td>
+                      <td>{page.slug}</td>
+                      <td>{formatDate(page.deleted_at)}</td>
+                      <td>
+                        <button
+                          className="restore-btn"
+                          onClick={() => handleRestorePage(page.slug)}
+                          style={{ marginRight: '10px' }}
+                        >
+                          Restore
+                        </button>
+                        <button
+                          className="delete-permanent-btn"
+                          onClick={() => handlePermanentDelete(page.slug, page.title)}
+                        >
+                          Delete Forever
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       )}
