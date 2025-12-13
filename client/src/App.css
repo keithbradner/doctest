@@ -368,6 +368,17 @@ body {
   margin-bottom: 5px;
 }
 
+.page-content .callout {
+  background: linear-gradient(to right, #3d6b8f, #4a7ea8);
+  border: 1px solid #5a8db8;
+  border-radius: 3px;
+  padding: 15px 20px;
+  margin: 20px 0;
+  color: #e8f0f8;
+  line-height: 1.6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 /* Login page */
 .login-container {
   display: flex;
