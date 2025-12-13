@@ -71,8 +71,9 @@ const parseBBCode = (text) => {
   html = html.replace(/\[quote=(.*?)\](.*?)\[\/quote\]/gs, '<blockquote class="quote"><div class="quote-author">Originally posted by $1:</div>$2</blockquote>');
   html = html.replace(/\[quote\](.*?)\[\/quote\]/gs, '<blockquote class="quote">$1</blockquote>');
 
-  // Callout (info banner)
-  html = html.replace(/\[callout\](.*?)\[\/callout\]/gs, '<div class="callout">$1</div>');
+  // Callout (info banner) - supports color variants: [callout=green], [callout=red], etc.
+  html = html.replace(/\[callout=(lightblue|green|red|yellow|gray|grey)\](.*?)\[\/callout\]/gs, '<div class="callout $1"><div>$2</div></div>');
+  html = html.replace(/\[callout\](.*?)\[\/callout\]/gs, '<div class="callout"><div>$1</div></div>');
 
   // Lists - unordered
   html = html.replace(/\[list\](.*?)\[\/list\]/gs, (match, content) => {

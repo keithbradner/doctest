@@ -237,38 +237,54 @@ body {
 }
 
 .page-content {
-  line-height: 1.8;
-  color: #c7d5e0;
+  line-height: 1.3em;
+  color: rgb(172, 181, 190);
+  font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
+  font-weight: normal;
+  font-size: 14px;
 }
 
 .page-content h1 {
-  font-size: 28px;
-  color: #66c0f4;
-  margin: 30px 0 15px 0;
-  font-weight: 400;
+  font-size: 22px;
+  color: white;
+  margin-top: 40px;
+  margin-bottom: 6px;
+  font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
+  font-weight: 300;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  line-height: 1.5em;
 }
 
 .page-content h2 {
-  font-size: 22px;
-  color: #66c0f4;
-  margin: 25px 0 12px 0;
-  font-weight: 400;
+  font-size: 18px;
+  color: rgb(221, 224, 228);
+  margin-top: 20px;
+  margin-bottom: 4px;
+  padding-top: 5px;
+  font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
+  font-weight: 300;
+  line-height: 1.5em;
 }
 
 .page-content h3 {
-  font-size: 18px;
-  color: #66c0f4;
-  margin: 20px 0 10px 0;
-  font-weight: 400;
+  font-size: 16px;
+  color: rgb(103, 193, 245);
+  margin-top: 15px;
+  margin-bottom: 4px;
+  font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
+  font-weight: normal;
+  text-transform: none;
 }
 
 .page-content p {
-  margin: 10px 0;
+  margin: 8px 0;
+  line-height: 1.4em;
 }
 
 .page-content strong {
-  color: #e8f0f8;
-  font-weight: 600;
+  color: rgb(229, 229, 229);
+  font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
+  font-weight: bold;
 }
 
 .page-content em {
@@ -285,19 +301,20 @@ body {
 }
 
 .page-content a {
-  color: #66c0f4;
+  color: rgb(70, 153, 201);
   text-decoration: none;
 }
 
 .page-content a:hover {
   text-decoration: underline;
+  color: rgb(103, 193, 245);
 }
 
 .page-content img {
   max-width: 100%;
   height: auto;
   margin: 15px 0;
-  border-radius: 3px;
+  box-shadow: rgba(255, 255, 255, 0.7) 0px 0px 10px 3px;
 }
 
 .page-content hr {
@@ -307,30 +324,40 @@ body {
 }
 
 .page-content ul, .page-content ol {
-  margin: 10px 0 10px 30px;
+  margin: 8px 0;
+  padding-left: 40px;
 }
 
-.page-content li {
-  margin: 5px 0;
+.page-content ul li {
+  list-style-type: square;
+  margin-top: 8px;
+  line-height: 1.4em;
+}
+
+.page-content ol li {
+  margin-top: 8px;
+  line-height: 1.4em;
 }
 
 .page-content code, .page-content pre {
-  background: #0e1923;
-  border: 1px solid #2a3f5f;
+  background-color: rgba(35, 35, 35, 0.6);
+  border: 1px solid rgb(83, 83, 84);
   border-radius: 3px;
-  font-family: 'Courier New', monospace;
-  color: #e8f0f8;
+  font-family: Consolas, monospace;
+  color: white;
 }
 
 .page-content code {
   padding: 2px 6px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .page-content pre {
-  padding: 15px;
+  padding: 12px;
+  margin: 8px;
+  font-size: 11px;
+  white-space: pre-wrap;
   overflow-x: auto;
-  margin: 15px 0;
 }
 
 .page-content pre code {
@@ -338,6 +365,7 @@ body {
   border: none;
   padding: 0;
   display: block;
+  font-size: inherit;
 }
 
 .page-content .spoiler {
@@ -368,15 +396,71 @@ body {
   margin-bottom: 5px;
 }
 
+/* Callout - Steam documentation style */
 .page-content .callout {
-  background: linear-gradient(to right, #3d6b8f, #4a7ea8);
-  border: 1px solid #5a8db8;
-  border-radius: 3px;
-  padding: 15px 20px;
-  margin: 20px 0;
-  color: #e8f0f8;
-  line-height: 1.6;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: rgb(148, 183, 202);
+  border-left: 5px solid rgb(72, 107, 126);
+  padding: 16px;
+  color: rgb(0, 0, 0);
+  margin: 8px 16px;
+  display: flex;
+}
+
+.page-content .callout > div {
+  flex-grow: 1;
+}
+
+.page-content .callout strong {
+  color: inherit;
+}
+
+.page-content .callout h3 {
+  color: inherit;
+  margin-top: 0;
+  margin-bottom: 0.65em;
+  text-transform: none;
+}
+
+/* Callout color variants */
+.page-content .callout.lightblue {
+  background: rgb(232, 244, 255);
+  border-color: rgb(190, 209, 230);
+}
+
+.page-content .callout.green {
+  background: rgb(229, 250, 220);
+  border-color: rgb(187, 218, 175);
+}
+
+.page-content .callout.red {
+  background: rgb(253, 232, 232);
+  border-color: rgb(231, 170, 170);
+}
+
+.page-content .callout.yellow {
+  background: rgb(255, 252, 213);
+  border-color: rgb(231, 220, 164);
+}
+
+.page-content .callout.gray,
+.page-content .callout.grey {
+  background: rgb(241, 241, 241);
+  border-color: rgb(207, 207, 207);
+}
+
+/* Callout link styling */
+.page-content .callout a {
+  color: rgb(6, 6, 6);
+  font-weight: 500;
+}
+
+.page-content .callout.lightblue a,
+.page-content .callout.green a,
+.page-content .callout.red a,
+.page-content .callout.yellow a,
+.page-content .callout.gray a,
+.page-content .callout.grey a {
+  color: rgb(128, 130, 133);
 }
 
 /* Login page */
