@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const { pool, initDB } = require('./db');
@@ -33,7 +34,7 @@ app.use(cors({
       if (origin && (origin.includes('.railway.app') || origin.includes('.up.railway.app'))) {
         callback(null, true);
       } else {
-        callback(null, true); // Allow all for now - tighten in production
+        callback(new Error('Not allowed by CORS'));
       }
     }
   },
@@ -73,10 +74,29 @@ const requireAdmin = async (req, res, next) => {
   }
 };
 
+// Rate limiters
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window
+  message: 'Too many login attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 100, // 100 requests per minute
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Routes
 
+// Apply general API rate limiting to all API routes
+app.use('/api/', apiLimiter);
+
 // Login
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 
@@ -97,8 +117,9 @@ app.post('/api/login', async (req, res) => {
 
     res.cookie('token', token, {
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      sameSite: 'lax'
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
     res.json({ success: true, username: user.username });
@@ -257,6 +278,18 @@ app.post('/api/images', authenticate, upload.single('image'), async (req, res) =
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Validate file type
+    const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!ALLOWED_MIME_TYPES.includes(req.file.mimetype)) {
+      return res.status(400).json({ error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.' });
+    }
+
+    // Validate file size (5MB limit)
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    if (req.file.size > MAX_SIZE) {
+      return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
     }
 
     const result = await pool.query(

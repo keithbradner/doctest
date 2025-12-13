@@ -184,6 +184,7 @@ function PageEdit({ slug, onUpdate }) {
                 <button className="toolbar-btn" onClick={() => insertBBCode('[olist]\n[*]', '\n[/olist]')}>OList</button>
                 <button className="toolbar-btn" onClick={() => insertBBCode('[code]', '[/code]')}>Code</button>
                 <button className="toolbar-btn" onClick={() => insertBBCode('[quote]', '[/quote]')}>Quote</button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('[callout]', '[/callout]')}>Callout</button>
                 <button className="toolbar-btn" onClick={() => insertBBCode('[spoiler]', '[/spoiler]')}>Spoiler</button>
                 <button className="toolbar-btn" onClick={() => insertBBCode('[hr]')}>HR</button>
                 <div className="toolbar-separator"></div>
@@ -230,6 +231,7 @@ function PageEdit({ slug, onUpdate }) {
               <button className="toolbar-btn" onClick={() => insertBBCode('[olist]\n[*]', '\n[/olist]')}>OList</button>
               <button className="toolbar-btn" onClick={() => insertBBCode('[code]', '[/code]')}>Code</button>
               <button className="toolbar-btn" onClick={() => insertBBCode('[quote]', '[/quote]')}>Quote</button>
+              <button className="toolbar-btn" onClick={() => insertBBCode('[callout]', '[/callout]')}>Callout</button>
               <button className="toolbar-btn" onClick={() => insertBBCode('[spoiler]', '[/spoiler]')}>Spoiler</button>
               <button className="toolbar-btn" onClick={() => insertBBCode('[hr]')}>HR</button>
               <div className="toolbar-separator"></div>

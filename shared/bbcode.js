@@ -71,6 +71,9 @@ const parseBBCode = (text) => {
   html = html.replace(/\[quote=(.*?)\](.*?)\[\/quote\]/gs, '<blockquote class="quote"><div class="quote-author">Originally posted by $1:</div>$2</blockquote>');
   html = html.replace(/\[quote\](.*?)\[\/quote\]/gs, '<blockquote class="quote">$1</blockquote>');
 
+  // Callout (info banner)
+  html = html.replace(/\[callout\](.*?)\[\/callout\]/gs, '<div class="callout">$1</div>');
+
   // Lists - unordered
   html = html.replace(/\[list\](.*?)\[\/list\]/gs, (match, content) => {
     const items = content.replace(/\[\*\]/g, '<li>').replace(/<li>\s*/g, '<li>');
@@ -97,8 +100,8 @@ const parseBBCode = (text) => {
   // - Remove newlines immediately after opening or before closing block tags
   // - Convert double newlines to paragraph breaks
   // - Convert single newlines to <br> only within inline content
-  html = html.replace(/(<\/(h[123]|ul|ol|blockquote|pre|hr)>)\n+/g, '$1');
-  html = html.replace(/\n+(<(h[123]|ul|ol|blockquote|pre|hr|li)>)/g, '$1');
+  html = html.replace(/(<\/(h[123]|ul|ol|blockquote|pre|hr|div)>)\n+/g, '$1');
+  html = html.replace(/\n+(<(h[123]|ul|ol|blockquote|pre|hr|li|div)>)/g, '$1');
   html = html.replace(/(<hr \/>)\n+/g, '$1');
 
   // Convert remaining double newlines to paragraph breaks
