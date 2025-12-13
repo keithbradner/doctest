@@ -126,6 +126,41 @@ const tests = [
     name: 'XSS prevention in noparse',
     input: '[noparse]<script>document.cookie</script>[/noparse]',
     expected: /&lt;script&gt;document\.cookie&lt;\/script&gt;/
+  },
+  {
+    name: 'Raw HTML should be escaped - script tag',
+    input: 'Normal text <script>alert("XSS")</script> more text',
+    expected: /&lt;script&gt;alert\(&quot;XSS&quot;\)&lt;\/script&gt;/
+  },
+  {
+    name: 'Raw HTML should be escaped - img tag with onerror',
+    input: '<img src=x onerror=alert(1)>',
+    expected: /&lt;img src=x onerror=alert\(1\)&gt;/
+  },
+  {
+    name: 'Raw HTML should be escaped - mixed with BBCode',
+    input: '[b]Bold</b> <script>alert(1)</script> [i]Italic</i>',
+    expected: /&lt;script&gt;.*&lt;\/script&gt;/
+  },
+  {
+    name: 'Raw HTML should be escaped - iframe injection',
+    input: '<iframe src="javascript:alert(1)"></iframe>',
+    expected: /&lt;iframe.*&lt;\/iframe&gt;/
+  },
+  {
+    name: 'Raw HTML entities should remain escaped',
+    input: 'Price: &lt;$50 &amp; &gt;$20',
+    expected: /&amp;lt;\$50 &amp;amp; &amp;gt;\$20/
+  },
+  {
+    name: 'HTML in BBCode should be escaped',
+    input: '[url=javascript:alert(1)]Click me[/url]',
+    expected: /<a href="javascript:alert\(1\)"/
+  },
+  {
+    name: 'Only BBCode processed, not HTML tags',
+    input: '[b]BBCode bold[/b] <b>HTML bold should not work</b>',
+    expected: /<strong>BBCode bold<\/strong>.*&lt;b&gt;HTML bold should not work&lt;\/b&gt;/
   }
 ];
 
