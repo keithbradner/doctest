@@ -87,6 +87,12 @@ const parseBBCode = (text) => {
     return `<ol>${items}</ol>`;
   });
 
+  // YouTube video embed - [previewyoutube]VIDEO_ID[/previewyoutube]
+  html = html.replace(/\[previewyoutube\](.*?)\[\/previewyoutube\]/gi, (match, videoId) => {
+    const cleanId = videoId.trim();
+    return `<div class="youtube-embed"><iframe src="https://www.youtube.com/embed/${cleanId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+  });
+
   // Restore code blocks
   codeBlocks.forEach((code, index) => {
     html = html.replace(`___CODE_${index}___`, code);

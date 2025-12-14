@@ -191,7 +191,7 @@ body {
 
 .breadcrumb a {
   color: #4699C9;
-  text-decoration: none;
+  text-decoration: underline;
 }
 
 .breadcrumb a:hover {
@@ -336,11 +336,10 @@ body {
 
 .page-content a {
   color: rgb(70, 153, 201);
-  text-decoration: none;
+  text-decoration: underline;
 }
 
 .page-content a:hover {
-  text-decoration: underline;
   color: rgb(103, 193, 245);
 }
 
@@ -429,6 +428,25 @@ body {
   color: #ACACAC;
   font-style: italic;
   margin-bottom: 5px;
+}
+
+/* YouTube Video Embed */
+.page-content .youtube-embed {
+  position: relative;
+  padding-bottom: 56.25%;
+  padding-top: 25px;
+  height: 0;
+  margin: 15px 0;
+  max-width: 1280px;
+}
+
+.page-content .youtube-embed iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 
 /* Callout - Steam documentation style */
@@ -957,11 +975,10 @@ body {
 
 .comment-content a {
   color: #4699C9;
-  text-decoration: none;
+  text-decoration: underline;
 }
 
 .comment-content a:hover {
-  text-decoration: underline;
   color: #67C1F5;
 }
 
@@ -1181,11 +1198,10 @@ body {
 
 .admin-table a {
   color: #4699C9;
-  text-decoration: none;
+  text-decoration: underline;
 }
 
 .admin-table a:hover {
-  text-decoration: underline;
   color: #67C1F5;
 }
 

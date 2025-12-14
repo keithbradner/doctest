@@ -17,6 +17,24 @@ A new button (⏎) has been added to both editors:
 - **Usage**: Click to add spacing between paragraphs
 - **Tooltip**: "Insert blank line" on hover
 
+### YouTube Video Embed
+A new button (▶ YouTube) has been added to the main editor:
+- **Location**: After the line break button
+- **Function**: Inserts `[previewyoutube][/previewyoutube]` tags for embedding YouTube videos
+- **Usage**: Click the button, then paste the YouTube video ID between the tags
+  - Example: `[previewyoutube]dQw4w9WgXcQ[/previewyoutube]`
+  - The video ID is the part after `v=` in a YouTube URL
+- **Rendering**: Creates a responsive 16:9 embedded player
+- **Tooltip**: "YouTube video (paste video ID)" on hover
+
+### Link Underlines
+All links now have underlines for better accessibility:
+- **Page content links**: Underlined by default
+- **Breadcrumb links**: Underlined
+- **Comment links**: Underlined
+- **Admin table links**: Underlined
+- **Hover behavior**: Color changes on hover (no additional underline)
+
 ## Toolbar Buttons Reference
 
 ### Main Editor (PageEdit.js)
@@ -29,8 +47,9 @@ A new button (⏎) has been added to both editors:
 7. **Callout** - Special callout box
 8. **Spoiler** - Spoiler tag
 9. **HR** - Horizontal rule
-10. **⏎** - Insert blank line (NEW)
-11. **Upload Image** - Image upload
+10. **⏎** - Insert blank line
+11. **▶ YouTube** - YouTube video embed (NEW)
+12. **Upload Image** - Image upload
 
 ### Comment Editor (PageTalk.js)
 1. **B, I, U** - Bold, Italic, Underline
@@ -73,6 +92,27 @@ A new button (⏎) has been added to both editors:
 }
 ```
 
+### YouTube Video Embed Styles
+```css
+.page-content .youtube-embed {
+  position: relative;
+  padding-bottom: 56.25%;
+  padding-top: 25px;
+  height: 0;
+  margin: 15px 0;
+  max-width: 1280px;
+}
+
+.page-content .youtube-embed iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+```
+
 ## Usage Examples
 
 ### Adding Spacing in Content
@@ -86,6 +126,20 @@ This is paragraph two with spacing above.
 
 ### Keyboard Alternative
 You can also manually press Enter twice to create the same effect.
+
+### Embedding YouTube Videos
+To embed a YouTube video in your page content:
+
+1. Click the **▶ YouTube** button in the toolbar
+2. Paste the YouTube video ID between the tags
+   ```
+   [previewyoutube]dQw4w9WgXcQ[/previewyoutube]
+   ```
+3. To find a video ID:
+   - From URL `https://www.youtube.com/watch?v=dQw4w9WgXcQ` → ID is `dQw4w9WgXcQ`
+   - From short URL `https://youtu.be/dQw4w9WgXcQ` → ID is `dQw4w9WgXcQ`
+4. The video will render as a responsive 16:9 embedded player
+5. Maximum width: 1280px (matches Steam documentation style)
 
 ## Visual Feedback
 
