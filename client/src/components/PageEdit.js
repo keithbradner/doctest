@@ -187,6 +187,7 @@ function PageEdit({ slug, onUpdate }) {
                 <button className="toolbar-btn" onClick={() => insertBBCode('[callout]', '[/callout]')}>Callout</button>
                 <button className="toolbar-btn" onClick={() => insertBBCode('[spoiler]', '[/spoiler]')}>Spoiler</button>
                 <button className="toolbar-btn" onClick={() => insertBBCode('[hr]')}>HR</button>
+                <button className="toolbar-btn" onClick={() => insertBBCode('\n\n')} title="Insert blank line">⏎</button>
                 <div className="toolbar-separator"></div>
                 <label className="toolbar-btn image-upload-btn">
                   Upload Image

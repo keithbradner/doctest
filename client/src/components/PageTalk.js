@@ -167,6 +167,9 @@ function PageTalk({ slug }) {
               <button type="button" className="toolbar-btn" onClick={() => insertBBCode('[url=]', '[/url]')}>
                 Link
               </button>
+              <button type="button" className="toolbar-btn" onClick={() => insertBBCode('\n\n')} title="Insert blank line">
+                ⏎
+              </button>
             </div>
             <textarea
               ref={textareaRef}
