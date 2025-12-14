@@ -57,6 +57,9 @@ const parseBBCode = (text) => {
   // Spoiler
   html = html.replace(/\[spoiler\](.*?)\[\/spoiler\]/gi, '<span class="spoiler">$1</span>');
 
+  // TODO - Highlighted text with tooltip note
+  html = html.replace(/\[todo=(.*?)\](.*?)\[\/todo\]/gi, '<span class="todo-highlight" data-todo="$1">$2</span>');
+
   // Horizontal rule
   html = html.replace(/\[hr\]/gi, '<hr />');
 
@@ -137,6 +140,3 @@ if (typeof module !== 'undefined' && module.exports) {
   // Browser (fallback)
   window.parseBBCode = parseBBCode;
 }
-
-// ES6 export for modern bundlers
-export { parseBBCode };

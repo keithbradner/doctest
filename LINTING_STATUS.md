@@ -16,8 +16,8 @@ npm run build
 
 ```
 File sizes after gzip:
-  75.07 kB  build\static\js\main.82cb5de2.js
-  3.60 kB   build\static\css\main.d1399bbe.css
+  75.14 kB  build\static\js\main.126b586e.js
+  3.80 kB   build\static\css\main.23563946.css
 ```
 
 **ESLint**: No warnings or errors

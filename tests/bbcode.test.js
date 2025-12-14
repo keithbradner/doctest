@@ -161,6 +161,61 @@ const tests = [
     name: 'Only BBCode processed, not HTML tags',
     input: '[b]BBCode bold[/b] <b>HTML bold should not work</b>',
     expected: /<strong>BBCode bold<\/strong>.*&lt;b&gt;HTML bold should not work&lt;\/b&gt;/
+  },
+  {
+    name: 'TODO highlight - basic usage',
+    input: '[todo=need to confirm with bob]pricing details[/todo]',
+    expected: /<span class="todo-highlight" data-todo="need to confirm with bob">pricing details<\/span>/
+  },
+  {
+    name: 'TODO highlight - with special characters in note',
+    input: '[todo=verify this (urgent!)]commission rate[/todo]',
+    expected: /<span class="todo-highlight" data-todo="verify this \(urgent!\)">commission rate<\/span>/
+  },
+  {
+    name: 'TODO highlight - HTML in note should be escaped',
+    input: '[todo=<script>alert(1)</script>]text[/todo]',
+    expected: /<span class="todo-highlight" data-todo="&lt;script&gt;alert\(1\)&lt;\/script&gt;">text<\/span>/
+  },
+  {
+    name: 'TODO highlight - empty note',
+    input: '[todo=]highlighted text[/todo]',
+    expected: /<span class="todo-highlight" data-todo="">highlighted text<\/span>/
+  },
+  {
+    name: 'TODO highlight - multiple TODOs in one line',
+    input: '[todo=check A]first[/todo] and [todo=check B]second[/todo]',
+    expected: /<span class="todo-highlight" data-todo="check A">first<\/span>.*<span class="todo-highlight" data-todo="check B">second<\/span>/
+  },
+  {
+    name: 'TODO highlight - with bold formatting inside',
+    input: '[todo=review this][b]important text[/b][/todo]',
+    expected: /<span class="todo-highlight" data-todo="review this"><strong>important text<\/strong><\/span>/
+  },
+  {
+    name: 'TODO highlight - quotes in note should be escaped',
+    input: '[todo=Bob said "check this"]content[/todo]',
+    expected: /<span class="todo-highlight" data-todo="Bob said &quot;check this&quot;">content<\/span>/
+  },
+  {
+    name: 'TODO highlight - mixed with other formatting',
+    input: 'Regular text [todo=verify]this part[/todo] and [b]bold text[/b]',
+    expected: /Regular text <span class="todo-highlight" data-todo="verify">this part<\/span>.*<strong>bold text<\/strong>/
+  },
+  {
+    name: 'TODO highlight - long note text',
+    input: '[todo=need to update this after the Q4 meeting with stakeholders]quarterly targets[/todo]',
+    expected: /<span class="todo-highlight" data-todo="need to update this after the Q4 meeting with stakeholders">quarterly targets<\/span>/
+  },
+  {
+    name: 'TODO highlight - inside code block should NOT be processed',
+    input: '[code][todo=note]text[/todo][/code]',
+    expected: /<pre><code>\[todo=note\]text\[\/todo\]<\/code><\/pre>/
+  },
+  {
+    name: 'TODO highlight - inside noparse should NOT be processed',
+    input: '[noparse][todo=note]text[/todo][/noparse]',
+    expected: /\[todo=note\]text\[\/todo\]/
   }
 ];
 

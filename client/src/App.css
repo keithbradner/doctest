@@ -415,6 +415,64 @@ body {
   color: #c7d5e0;
 }
 
+/* TODO Highlight with Tooltip */
+.page-content .todo-highlight {
+  background: rgba(255, 204, 0, 0.3);
+  border-bottom: 2px dotted rgb(255, 204, 0);
+  padding: 2px 4px;
+  border-radius: 2px;
+  cursor: help;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.page-content .todo-highlight:hover {
+  background: rgba(255, 204, 0, 0.4);
+}
+
+.page-content .todo-highlight::before {
+  content: attr(data-todo);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: rgb(255, 204, 106);
+  color: rgb(0, 0, 0);
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+  font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
+  line-height: 1.4;
+}
+
+.page-content .todo-highlight::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 2px;
+  border: 6px solid transparent;
+  border-top-color: rgb(255, 204, 106);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 10;
+}
+
+.page-content .todo-highlight:hover::before,
+.page-content .todo-highlight:hover::after {
+  opacity: 1;
+}
+
 .page-content blockquote {
   border-left: 3px solid #67C1F5;
   padding: 10px 15px;

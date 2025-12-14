@@ -6,7 +6,10 @@
       "Bash(for file in PageView.js AdminDashboard.js PageEdit.js PageTalk.js)",
       "Bash(do echo \"=== $file ===\")",
       "Bash(done)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(npm run test:bbcode:*)",
+      "Bash(npm run test:all:*)",
+      "Bash(npm run test:deletion:*)"
     ]
   }
 }

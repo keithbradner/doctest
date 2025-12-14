@@ -35,6 +35,19 @@ All links now have underlines for better accessibility:
 - **Admin table links**: Underlined
 - **Hover behavior**: Color changes on hover (no additional underline)
 
+### TODO Highlight with Tooltip
+A new button (📝 TODO) has been added to the main editor:
+- **Location**: After the Spoiler button
+- **Function**: Inserts `[todo=note][/todo]` tags to highlight text with a TODO note
+- **Usage**: Click the button, enter your TODO note in the `=note` part, and the text to highlight between the tags
+  - Example: `[todo=need to confirm with bob]pricing details[/todo]`
+- **Visual appearance**:
+  - Yellow background highlight (rgba(255, 204, 0, 0.3))
+  - Dotted yellow underline
+  - Help cursor on hover
+- **Tooltip**: Hover over highlighted text to see the TODO note in a yellow tooltip
+- **Tooltip**: "TODO note with tooltip" on button hover
+
 ## Toolbar Buttons Reference
 
 ### Main Editor (PageEdit.js)
@@ -46,10 +59,11 @@ All links now have underlines for better accessibility:
 6. **Quote** - Blockquote
 7. **Callout** - Special callout box
 8. **Spoiler** - Spoiler tag
-9. **HR** - Horizontal rule
-10. **⏎** - Insert blank line
-11. **▶ YouTube** - YouTube video embed (NEW)
-12. **Upload Image** - Image upload
+9. **📝 TODO** - TODO highlight with tooltip (NEW)
+10. **HR** - Horizontal rule
+11. **⏎** - Insert blank line
+12. **▶ YouTube** - YouTube video embed
+13. **Upload Image** - Image upload
 
 ### Comment Editor (PageTalk.js)
 1. **B, I, U** - Bold, Italic, Underline
@@ -113,6 +127,47 @@ All links now have underlines for better accessibility:
 }
 ```
 
+### TODO Highlight Styles
+```css
+.page-content .todo-highlight {
+  background: rgba(255, 204, 0, 0.3);
+  border-bottom: 2px dotted rgb(255, 204, 0);
+  padding: 2px 4px;
+  border-radius: 2px;
+  cursor: help;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.page-content .todo-highlight:hover {
+  background: rgba(255, 204, 0, 0.4);
+}
+
+/* Tooltip shown on hover */
+.page-content .todo-highlight::before {
+  content: attr(data-todo);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: rgb(255, 204, 106);
+  color: rgb(0, 0, 0);
+  border-radius: 4px;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+}
+
+.page-content .todo-highlight:hover::before {
+  opacity: 1;
+}
+```
+
 ## Usage Examples
 
 ### Adding Spacing in Content
@@ -141,6 +196,24 @@ To embed a YouTube video in your page content:
 4. The video will render as a responsive 16:9 embedded player
 5. Maximum width: 1280px (matches Steam documentation style)
 
+### Adding TODO Notes
+To highlight text with a TODO note:
+
+1. Click the **📝 TODO** button in the toolbar
+2. Enter your TODO note after the `=` sign
+3. Place the text to highlight between the tags
+   ```
+   [todo=need to confirm with bob]pricing details[/todo]
+   [todo=verify this number]5.2% commission rate[/todo]
+   [todo=update after Q4 meeting]quarterly revenue targets[/todo]
+   ```
+4. The highlighted text will appear with:
+   - Yellow background highlight
+   - Dotted yellow underline
+   - Help cursor (question mark) on hover
+5. Hover over the highlighted text to see your TODO note in a tooltip
+6. Great for marking items that need review, verification, or updates
+
 ## Visual Feedback
 
 The hover states provide clear visual feedback:
@@ -150,3 +223,24 @@ The hover states provide clear visual feedback:
 4. **Release**: Returns to hover state
 
 This makes the toolbar more interactive and provides better user experience matching modern UI standards.
+
+## Testing
+
+The TODO feature is comprehensively tested with 11 automated tests covering:
+- Basic usage and syntax
+- Special characters and HTML escaping (XSS prevention)
+- Quote escaping in attributes
+- Empty notes
+- Multiple TODOs per line
+- Nested BBCode formatting
+- Long note text
+- Protection inside code and noparse blocks
+
+Run tests with:
+```bash
+npm run test:bbcode
+```
+
+All 43 BBCode tests pass (32 existing + 11 new TODO tests).
+
+See `tests/TODO_FEATURE_TESTS.md` for detailed test documentation.
