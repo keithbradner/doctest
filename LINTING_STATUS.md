@@ -16,7 +16,7 @@ npm run build
 
 ```
 File sizes after gzip:
-  75.14 kB  build\static\js\main.126b586e.js
+  75.02 kB  build\static\js\main.db24a0ae.js
   3.80 kB   build\static\css\main.23563946.css
 ```
 
