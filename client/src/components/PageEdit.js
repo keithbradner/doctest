@@ -104,6 +104,92 @@ function PageEdit({ slug, onUpdate }) {
     navigate(slug === 'welcome' ? '/' : `/page/${slug}`);
   };
 
+  const handleKeyDown = (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'b' || e.key === 'B') {
+        e.preventDefault();
+        insertBBCode('[b]', '[/b]');
+      } else if (e.key === 'i' || e.key === 'I') {
+        e.preventDefault();
+        insertBBCode('[i]', '[/i]');
+      }
+    }
+  };
+
+  const handlePaste = (e) => {
+    const clipboardData = e.clipboardData;
+    const html = clipboardData.getData('text/html');
+
+    if (html) {
+      // Parse HTML and convert links to BBCode
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      // Convert <a> tags to [url] BBCode
+      const convertNode = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          return node.textContent;
+        }
+
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const tagName = node.tagName.toLowerCase();
+          let childContent = Array.from(node.childNodes).map(convertNode).join('');
+
+          if (tagName === 'a' && node.href) {
+            const href = node.getAttribute('href');
+            // If link text is the same as URL, use simple [url] format
+            if (childContent.trim() === href) {
+              return `[url]${href}[/url]`;
+            }
+            return `[url=${href}]${childContent}[/url]`;
+          }
+
+          // Handle other common formatting
+          if (tagName === 'b' || tagName === 'strong') {
+            return `[b]${childContent}[/b]`;
+          }
+          if (tagName === 'i' || tagName === 'em') {
+            return `[i]${childContent}[/i]`;
+          }
+          if (tagName === 'u') {
+            return `[u]${childContent}[/u]`;
+          }
+          if (tagName === 'br') {
+            return '\n';
+          }
+          if (tagName === 'p' || tagName === 'div') {
+            return childContent + '\n';
+          }
+
+          return childContent;
+        }
+
+        return '';
+      };
+
+      const convertedText = Array.from(doc.body.childNodes).map(convertNode).join('').trim();
+
+      // Only use converted text if it contains BBCode (meaning there were links/formatting)
+      if (convertedText.includes('[url') || convertedText.includes('[b]') || convertedText.includes('[i]') || convertedText.includes('[u]')) {
+        e.preventDefault();
+
+        const textarea = textareaRef.current;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        const newContent = content.substring(0, start) + convertedText + content.substring(end);
+        setContent(newContent);
+
+        // Set cursor position after pasted text
+        setTimeout(() => {
+          textarea.selectionStart = start + convertedText.length;
+          textarea.selectionEnd = start + convertedText.length;
+          textarea.focus();
+        }, 0);
+      }
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
@@ -209,6 +295,8 @@ function PageEdit({ slug, onUpdate }) {
                 className="editor-textarea split-editor-textarea"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
               />
             </div>
           </div>
@@ -262,6 +350,8 @@ function PageEdit({ slug, onUpdate }) {
               className="editor-textarea"
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
             />
           </div>
         ) : (
