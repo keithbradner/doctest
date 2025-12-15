@@ -137,7 +137,7 @@ function Sidebar({ pages, userRole, onAddPage }) {
           {!hasChildren && !hasSections && <span className="nav-toggle no-children" />}
           <span>{page.title}</span>
         </Link>
-        {isActive && hasSections && renderSections(sections, page.slug, depth)}
+        {isActive && hasSections && isExpanded && renderSections(sections, page.slug, depth)}
         {hasChildren && isExpanded && (
           <div>
             {page.children.map(child => renderNavItem(child, depth + 1))}
