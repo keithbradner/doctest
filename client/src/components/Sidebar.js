@@ -43,21 +43,22 @@ function Sidebar({ pages, userRole, onAddPage }) {
     }));
   };
 
-  const renderSections = (sections, pageSlug) => {
+  const renderSections = (sections, pageSlug, baseDepth = 1) => {
     if (!sections || sections.length === 0) return null;
 
     return (
-      <div className="nav-sections">
+      <div>
         {sections.map((section, idx) => {
           const sectionKey = `${pageSlug}-section-${idx}`;
           const hasSubsections = section.subsections && section.subsections.length > 0;
           const isSectionExpanded = expandedSections[sectionKey];
+          const sectionDepthClass = baseDepth === 1 ? 'child' : 'child-2';
 
           return (
             <div key={sectionKey}>
               <a
-                href={section.anchor ? `/page/${pageSlug}#${section.anchor}` : `/page/${pageSlug}`}
-                className="nav-section-item"
+                href={section.anchor ? `/page/${pageSlug}#${encodeURIComponent(section.anchor)}` : `/page/${pageSlug}`}
+                className={`nav-item ${sectionDepthClass}`}
               >
                 {hasSubsections && (
                   <span
@@ -72,12 +73,12 @@ function Sidebar({ pages, userRole, onAddPage }) {
                 <span>{section.title}</span>
               </a>
               {hasSubsections && isSectionExpanded && (
-                <div className="nav-subsections">
+                <div>
                   {section.subsections.map((subsection, subIdx) => (
                     <a
                       key={`${sectionKey}-sub-${subIdx}`}
-                      href={subsection.anchor ? `/page/${pageSlug}#${subsection.anchor}` : `/page/${pageSlug}`}
-                      className="nav-subsection-item"
+                      href={subsection.anchor ? `/page/${pageSlug}#${encodeURIComponent(subsection.anchor)}` : `/page/${pageSlug}`}
+                      className="nav-item child-2"
                     >
                       <span className="nav-toggle no-children" />
                       <span>{subsection.title}</span>
