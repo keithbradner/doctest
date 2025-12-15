@@ -216,6 +216,93 @@ const tests = [
     name: 'TODO highlight - inside noparse should NOT be processed',
     input: '[noparse][todo=note]text[/todo][/noparse]',
     expected: /\[todo=note\]text\[\/todo\]/
+  },
+  // Section and Subsection tests
+  {
+    name: 'Section - with anchor',
+    input: '[section=intro]Introduction[/section]',
+    expected: /<h2 class="bb_section"><a name="intro"><\/a>Introduction<\/h2>/
+  },
+  {
+    name: 'Section - without anchor',
+    input: '[section]Getting Started[/section]',
+    expected: /<h2 class="bb_section">Getting Started<\/h2>/
+  },
+  {
+    name: 'Subsection - with anchor',
+    input: '[subsection=details]More Details[/subsection]',
+    expected: /<h2 class="bb_subsection"><a name="details"><\/a>More Details<\/h2>/
+  },
+  {
+    name: 'Subsection - without anchor',
+    input: '[subsection]Additional Info[/subsection]',
+    expected: /<h2 class="bb_subsection">Additional Info<\/h2>/
+  },
+  {
+    name: 'Section - HTML in content should be escaped',
+    input: '[section=test]<script>alert(1)</script>[/section]',
+    expected: /<h2 class="bb_section"><a name="test"><\/a>&lt;script&gt;alert\(1\)&lt;\/script&gt;<\/h2>/
+  },
+  {
+    name: 'Section - multiple sections in document',
+    input: '[section=first]First Section[/section]\n[section=second]Second Section[/section]',
+    expected: /<h2 class="bb_section"><a name="first"><\/a>First Section<\/h2>.*<h2 class="bb_section"><a name="second"><\/a>Second Section<\/h2>/
+  },
+  {
+    name: 'Section and subsection together',
+    input: '[section=main]Main Section[/section]\n[subsection=sub1]Subsection One[/subsection]',
+    expected: /<h2 class="bb_section"><a name="main"><\/a>Main Section<\/h2>.*<h2 class="bb_subsection"><a name="sub1"><\/a>Subsection One<\/h2>/
+  },
+  {
+    name: 'Section - inside code block should NOT be processed',
+    input: '[code][section=test]Title[/section][/code]',
+    expected: /<pre><code>\[section=test\]Title\[\/section\]<\/code><\/pre>/
+  },
+  {
+    name: 'Subsection - inside noparse should NOT be processed',
+    input: '[noparse][subsection=test]Title[/subsection][/noparse]',
+    expected: /\[subsection=test\]Title\[\/subsection\]/
+  },
+  // Doclink tests
+  {
+    name: 'Doclink - basic usage',
+    input: '[doclink=getting-started]Getting Started Guide[/doclink]',
+    expected: /<a href="\/wiki\/getting-started" class="doclink">Getting Started Guide<\/a>/
+  },
+  {
+    name: 'Doclink - with underscores in slug',
+    input: '[doclink=api_reference]API Reference[/doclink]',
+    expected: /<a href="\/wiki\/api_reference" class="doclink">API Reference<\/a>/
+  },
+  {
+    name: 'Doclink - multiple links',
+    input: 'See [doclink=intro]Introduction[/doclink] and [doclink=setup]Setup[/doclink]',
+    expected: /<a href="\/wiki\/intro" class="doclink">Introduction<\/a>.*<a href="\/wiki\/setup" class="doclink">Setup<\/a>/
+  },
+  {
+    name: 'Doclink - HTML in link text should be escaped',
+    input: '[doclink=test]<b>Bold</b>[/doclink]',
+    expected: /<a href="\/wiki\/test" class="doclink">&lt;b&gt;Bold&lt;\/b&gt;<\/a>/
+  },
+  {
+    name: 'Doclink - inside code block should NOT be processed',
+    input: '[code][doclink=test]Link[/doclink][/code]',
+    expected: /<pre><code>\[doclink=test\]Link\[\/doclink\]<\/code><\/pre>/
+  },
+  {
+    name: 'Doclink - inside noparse should NOT be processed',
+    input: '[noparse][doclink=test]Link[/doclink][/noparse]',
+    expected: /\[doclink=test\]Link\[\/doclink\]/
+  },
+  {
+    name: 'Doclink - with formatting inside',
+    input: '[doclink=guide][b]Important[/b] Guide[/doclink]',
+    expected: /<a href="\/wiki\/guide" class="doclink"><strong>Important<\/strong> Guide<\/a>/
+  },
+  {
+    name: 'Section with doclink inside',
+    input: '[section=refs]References[/section]\nSee [doclink=api]API Docs[/doclink]',
+    expected: /<h2 class="bb_section"><a name="refs"><\/a>References<\/h2>.*<a href="\/wiki\/api" class="doclink">API Docs<\/a>/
   }
 ];
 

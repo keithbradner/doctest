@@ -48,6 +48,12 @@ const parseBBCode = (text) => {
   html = html.replace(/\[h2\](.*?)\[\/h2\]/gi, '<h2>$1</h2>');
   html = html.replace(/\[h3\](.*?)\[\/h3\]/gi, '<h3>$1</h3>');
 
+  // Section headers with anchor support - [section=anchorname]Title[/section]
+  html = html.replace(/\[section=(.*?)\](.*?)\[\/section\]/gi, '<h2 class="bb_section"><a name="$1"></a>$2</h2>');
+  html = html.replace(/\[section\](.*?)\[\/section\]/gi, '<h2 class="bb_section">$1</h2>');
+  html = html.replace(/\[subsection=(.*?)\](.*?)\[\/subsection\]/gi, '<h2 class="bb_subsection"><a name="$1"></a>$2</h2>');
+  html = html.replace(/\[subsection\](.*?)\[\/subsection\]/gi, '<h2 class="bb_subsection">$1</h2>');
+
   // Text formatting
   html = html.replace(/\[b\](.*?)\[\/b\]/gi, '<strong>$1</strong>');
   html = html.replace(/\[i\](.*?)\[\/i\]/gi, '<em>$1</em>');
@@ -66,6 +72,9 @@ const parseBBCode = (text) => {
   // Links
   html = html.replace(/\[url=(.*?)\](.*?)\[\/url\]/gi, '<a href="$1" target="_blank" rel="noopener noreferrer">$2</a>');
   html = html.replace(/\[url\](.*?)\[\/url\]/gi, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  // Doc links - internal wiki links [doclink=slug]Text[/doclink]
+  html = html.replace(/\[doclink=(.*?)\](.*?)\[\/doclink\]/gi, '<a href="/wiki/$1" class="doclink">$2</a>');
 
   // Images
   html = html.replace(/\[img\](.*?)\[\/img\]/gi, '<img src="$1" alt="Image" />');

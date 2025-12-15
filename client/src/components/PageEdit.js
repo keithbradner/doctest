@@ -113,7 +113,7 @@ function PageEdit({ slug, onUpdate }) {
   }
 
   return (
-    <div className="content-inner">
+    <div className="content-inner full-width">
       <div className="breadcrumb">
         <a href="/">Steamworks Documentation</a> &gt; {page.title} &gt; Edit
       </div>
