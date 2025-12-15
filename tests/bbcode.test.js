@@ -219,9 +219,9 @@ const tests = [
   },
   // Section and Subsection tests
   {
-    name: 'Section - with anchor',
-    input: '[section=intro]Introduction[/section]',
-    expected: /<h2 class="bb_section"><a name="intro"><\/a>Introduction<\/h2>/
+    name: 'Section - with title only',
+    input: '[section=Introduction][/section]',
+    expected: /<h2 class="bb_section"><a name="Introduction"><\/a>Introduction<\/h2>/
   },
   {
     name: 'Section - without anchor',
@@ -229,9 +229,9 @@ const tests = [
     expected: /<h2 class="bb_section">Getting Started<\/h2>/
   },
   {
-    name: 'Subsection - with anchor',
-    input: '[subsection=details]More Details[/subsection]',
-    expected: /<h2 class="bb_subsection"><a name="details"><\/a>More Details<\/h2>/
+    name: 'Subsection - with title only',
+    input: '[subsection=More Details][/subsection]',
+    expected: /<h2 class="bb_subsection"><a name="More Details"><\/a>More Details<\/h2>/
   },
   {
     name: 'Subsection - without anchor',
@@ -239,19 +239,19 @@ const tests = [
     expected: /<h2 class="bb_subsection">Additional Info<\/h2>/
   },
   {
-    name: 'Section - HTML in content should be escaped',
-    input: '[section=test]<script>alert(1)</script>[/section]',
-    expected: /<h2 class="bb_section"><a name="test"><\/a>&lt;script&gt;alert\(1\)&lt;\/script&gt;<\/h2>/
+    name: 'Section - with title and description',
+    input: '[section=Overview]This is the overview section.[/section]',
+    expected: /<h2 class="bb_section"><a name="Overview"><\/a>Overview<\/h2><p class="section-desc">This is the overview section\.<\/p>/
   },
   {
     name: 'Section - multiple sections in document',
-    input: '[section=first]First Section[/section]\n[section=second]Second Section[/section]',
-    expected: /<h2 class="bb_section"><a name="first"><\/a>First Section<\/h2>.*<h2 class="bb_section"><a name="second"><\/a>Second Section<\/h2>/
+    input: '[section=First Section][/section]\n[section=Second Section][/section]',
+    expected: /<h2 class="bb_section"><a name="First Section"><\/a>First Section<\/h2>.*<h2 class="bb_section"><a name="Second Section"><\/a>Second Section<\/h2>/
   },
   {
     name: 'Section and subsection together',
-    input: '[section=main]Main Section[/section]\n[subsection=sub1]Subsection One[/subsection]',
-    expected: /<h2 class="bb_section"><a name="main"><\/a>Main Section<\/h2>.*<h2 class="bb_subsection"><a name="sub1"><\/a>Subsection One<\/h2>/
+    input: '[section=Main Section][/section]\n[subsection=Subsection One][/subsection]',
+    expected: /<h2 class="bb_section"><a name="Main Section"><\/a>Main Section<\/h2>.*<h2 class="bb_subsection"><a name="Subsection One"><\/a>Subsection One<\/h2>/
   },
   {
     name: 'Section - inside code block should NOT be processed',
@@ -300,9 +300,19 @@ const tests = [
     expected: /<a href="\/wiki\/guide" class="doclink"><strong>Important<\/strong> Guide<\/a>/
   },
   {
-    name: 'Section with doclink inside',
-    input: '[section=refs]References[/section]\nSee [doclink=api]API Docs[/doclink]',
-    expected: /<h2 class="bb_section"><a name="refs"><\/a>References<\/h2>.*<a href="\/wiki\/api" class="doclink">API Docs<\/a>/
+    name: 'Section with doclink inside description',
+    input: '[section=References]See [doclink=api]API Docs[/doclink] for more info.[/section]',
+    expected: /<h2 class="bb_section"><a name="References"><\/a>References<\/h2><p class="section-desc">See <a href="\/wiki\/api" class="doclink">API Docs<\/a> for more info\.<\/p>/
+  },
+  {
+    name: 'Section - multiline description',
+    input: '[section=Introduction]This is the intro.\nMore details here.[/section]',
+    expected: /<h2 class="bb_section"><a name="Introduction"><\/a>Introduction<\/h2><p class="section-desc">This is the intro\.<br>More details here\.<\/p>/
+  },
+  {
+    name: 'Section - title with spaces',
+    input: '[section=My Section Name]Description here.[/section]',
+    expected: /<h2 class="bb_section"><a name="My Section Name"><\/a>My Section Name<\/h2><p class="section-desc">Description here\.<\/p>/
   }
 ];
 
@@ -340,41 +350,41 @@ console.log(`\nResults: ${passed} passed, ${failed} failed out of ${tests.length
 // extractSections tests
 const sectionTests = [
   {
-    name: 'Extract single section with anchor',
-    input: '[section=intro]Introduction[/section]',
-    expected: [{ title: 'Introduction', anchor: 'intro', subsections: [] }]
+    name: 'Extract single section with title',
+    input: '[section=Introduction]Some description[/section]',
+    expected: [{ title: 'Introduction', anchor: 'Introduction', subsections: [] }]
   },
   {
-    name: 'Extract section without anchor',
+    name: 'Extract section without title attribute',
     input: '[section]Getting Started[/section]',
     expected: [{ title: 'Getting Started', anchor: null, subsections: [] }]
   },
   {
     name: 'Extract section with subsections',
-    input: '[section=main]Main[/section][subsection=sub1]Sub 1[/subsection][subsection=sub2]Sub 2[/subsection]',
+    input: '[section=Main]desc[/section][subsection=Sub 1]desc[/subsection][subsection=Sub 2]desc[/subsection]',
     expected: [{
       title: 'Main',
-      anchor: 'main',
+      anchor: 'Main',
       subsections: [
-        { title: 'Sub 1', anchor: 'sub1' },
-        { title: 'Sub 2', anchor: 'sub2' }
+        { title: 'Sub 1', anchor: 'Sub 1' },
+        { title: 'Sub 2', anchor: 'Sub 2' }
       ]
     }]
   },
   {
     name: 'Extract multiple sections',
-    input: '[section=first]First[/section][section=second]Second[/section]',
+    input: '[section=First]desc[/section][section=Second]desc[/section]',
     expected: [
-      { title: 'First', anchor: 'first', subsections: [] },
-      { title: 'Second', anchor: 'second', subsections: [] }
+      { title: 'First', anchor: 'First', subsections: [] },
+      { title: 'Second', anchor: 'Second', subsections: [] }
     ]
   },
   {
     name: 'Extract complex structure',
-    input: '[section=a]Section A[/section][subsection=a1]A1[/subsection][section=b]Section B[/section][subsection=b1]B1[/subsection][subsection=b2]B2[/subsection]',
+    input: '[section=Section A]desc[/section][subsection=A1]desc[/subsection][section=Section B]desc[/section][subsection=B1]desc[/subsection][subsection=B2]desc[/subsection]',
     expected: [
-      { title: 'Section A', anchor: 'a', subsections: [{ title: 'A1', anchor: 'a1' }] },
-      { title: 'Section B', anchor: 'b', subsections: [{ title: 'B1', anchor: 'b1' }, { title: 'B2', anchor: 'b2' }] }
+      { title: 'Section A', anchor: 'Section A', subsections: [{ title: 'A1', anchor: 'A1' }] },
+      { title: 'Section B', anchor: 'Section B', subsections: [{ title: 'B1', anchor: 'B1' }, { title: 'B2', anchor: 'B2' }] }
     ]
   },
   {
@@ -389,8 +399,18 @@ const sectionTests = [
   },
   {
     name: 'Subsection without parent becomes top-level',
-    input: '[subsection=orphan]Orphan[/subsection]',
-    expected: [{ title: 'Orphan', anchor: 'orphan', subsections: [] }]
+    input: '[subsection=Orphan]desc[/subsection]',
+    expected: [{ title: 'Orphan', anchor: 'Orphan', subsections: [] }]
+  },
+  {
+    name: 'Title from attribute used for nav',
+    input: '[section=Developing for Steam Frame]Like the Steam Deck, this introduces new features.[/section]',
+    expected: [{ title: 'Developing for Steam Frame', anchor: 'Developing for Steam Frame', subsections: [] }]
+  },
+  {
+    name: 'Long title gets truncated',
+    input: '[section=This is a very long section title that exceeds sixty characters and should be truncated]desc[/section]',
+    expected: [{ title: 'This is a very long section title that exceeds sixty char...', anchor: 'This is a very long section title that exceeds sixty characters and should be truncated', subsections: [] }]
   }
 ];
 

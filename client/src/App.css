@@ -429,6 +429,15 @@ td {
   visibility: hidden;
 }
 
+/* Section description paragraphs */
+.page-content p.section-desc,
+.page-content p.subsection-desc {
+  margin-top: 8px;
+  margin-bottom: 20px;
+  color: rgb(172, 181, 190);
+  line-height: 1.5em;
+}
+
 /* Doc link styling */
 .page-content a.doclink {
   color: #67C1F5;

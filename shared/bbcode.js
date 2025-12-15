@@ -48,11 +48,25 @@ const parseBBCode = (text) => {
   html = html.replace(/\[h2\](.*?)\[\/h2\]/gi, '<h2>$1</h2>');
   html = html.replace(/\[h3\](.*?)\[\/h3\]/gi, '<h3>$1</h3>');
 
-  // Section headers with anchor support - [section=anchorname]Title[/section]
-  html = html.replace(/\[section=(.*?)\](.*?)\[\/section\]/gi, '<h2 class="bb_section"><a name="$1"></a>$2</h2>');
-  html = html.replace(/\[section\](.*?)\[\/section\]/gi, '<h2 class="bb_section">$1</h2>');
-  html = html.replace(/\[subsection=(.*?)\](.*?)\[\/subsection\]/gi, '<h2 class="bb_subsection"><a name="$1"></a>$2</h2>');
-  html = html.replace(/\[subsection\](.*?)\[\/subsection\]/gi, '<h2 class="bb_subsection">$1</h2>');
+  // Section headers - [section=Title]description[/section]
+  // Title goes in the heading, description becomes paragraph content after
+  // Note: Using 'gs' flag to handle multiline content
+  html = html.replace(/\[section=(.*?)\](.*?)\[\/section\]/gis, (match, title, content) => {
+    const trimmedContent = content.trim();
+    if (trimmedContent) {
+      return `<h2 class="bb_section"><a name="${title}"></a>${title}</h2><p class="section-desc">${trimmedContent}</p>`;
+    }
+    return `<h2 class="bb_section"><a name="${title}"></a>${title}</h2>`;
+  });
+  html = html.replace(/\[section\](.*?)\[\/section\]/gis, '<h2 class="bb_section">$1</h2>');
+  html = html.replace(/\[subsection=(.*?)\](.*?)\[\/subsection\]/gis, (match, title, content) => {
+    const trimmedContent = content.trim();
+    if (trimmedContent) {
+      return `<h2 class="bb_subsection"><a name="${title}"></a>${title}</h2><p class="subsection-desc">${trimmedContent}</p>`;
+    }
+    return `<h2 class="bb_subsection"><a name="${title}"></a>${title}</h2>`;
+  });
+  html = html.replace(/\[subsection\](.*?)\[\/subsection\]/gis, '<h2 class="bb_subsection">$1</h2>');
 
   // Text formatting
   html = html.replace(/\[b\](.*?)\[\/b\]/gi, '<strong>$1</strong>');
@@ -147,29 +161,41 @@ const extractSections = (text) => {
 
   const sections = [];
 
-  // Match [section=anchor]Title[/section] and [section]Title[/section]
-  const sectionRegex = /\[section(?:=([^\]]*))?\](.*?)\[\/section\]/gi;
-  // Match [subsection=anchor]Title[/subsection] and [subsection]Title[/subsection]
-  const subsectionRegex = /\[subsection(?:=([^\]]*))?\](.*?)\[\/subsection\]/gi;
+  // Helper to truncate long titles for nav display
+  const truncateTitle = (title) => {
+    if (!title) return '';
+    const trimmed = title.trim();
+    return trimmed.length > 60 ? trimmed.substring(0, 57) + '...' : trimmed;
+  };
+
+  // Match [section=Title]content[/section] - title is in the = attribute
+  // Using 's' flag for multiline content
+  const sectionRegex = /\[section(?:=([^\]]*))?\](.*?)\[\/section\]/gis;
+  // Match [subsection=Title]content[/subsection]
+  const subsectionRegex = /\[subsection(?:=([^\]]*))?\](.*?)\[\/subsection\]/gis;
 
   // Find all sections and subsections with their positions
   const allMatches = [];
 
   let match;
   while ((match = sectionRegex.exec(text)) !== null) {
+    // Title comes from the = attribute, or fall back to content for [section]Title[/section]
+    const title = match[1] || match[2];
     allMatches.push({
       type: 'section',
       anchor: match[1] || null,
-      title: match[2],
+      title: truncateTitle(title),
       index: match.index
     });
   }
 
   while ((match = subsectionRegex.exec(text)) !== null) {
+    // Title comes from the = attribute, or fall back to content
+    const title = match[1] || match[2];
     allMatches.push({
       type: 'subsection',
       anchor: match[1] || null,
-      title: match[2],
+      title: truncateTitle(title),
       index: match.index
     });
   }
