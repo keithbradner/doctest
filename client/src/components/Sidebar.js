@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { extractSections } from '../utils/bbcode';
 
 function Sidebar({ pages, userRole, onAddPage }) {
   const location = useLocation();
   const [expandedPages, setExpandedPages] = useState({});
+  const [expandedSections, setExpandedSections] = useState({});
 
   // Build hierarchical structure
   const buildTree = (pages) => {
@@ -34,12 +36,72 @@ function Sidebar({ pages, userRole, onAddPage }) {
     }));
   };
 
+  const toggleSectionExpand = (sectionKey) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey]
+    }));
+  };
+
+  const renderSections = (sections, pageSlug) => {
+    if (!sections || sections.length === 0) return null;
+
+    return (
+      <div className="nav-sections">
+        {sections.map((section, idx) => {
+          const sectionKey = `${pageSlug}-section-${idx}`;
+          const hasSubsections = section.subsections && section.subsections.length > 0;
+          const isSectionExpanded = expandedSections[sectionKey];
+
+          return (
+            <div key={sectionKey}>
+              <a
+                href={section.anchor ? `/page/${pageSlug}#${section.anchor}` : `/page/${pageSlug}`}
+                className="nav-section-item"
+              >
+                {hasSubsections && (
+                  <span
+                    className={`nav-toggle ${isSectionExpanded ? 'expanded' : 'collapsed'}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleSectionExpand(sectionKey);
+                    }}
+                  />
+                )}
+                {!hasSubsections && <span className="nav-toggle no-children" />}
+                <span>{section.title}</span>
+              </a>
+              {hasSubsections && isSectionExpanded && (
+                <div className="nav-subsections">
+                  {section.subsections.map((subsection, subIdx) => (
+                    <a
+                      key={`${sectionKey}-sub-${subIdx}`}
+                      href={subsection.anchor ? `/page/${pageSlug}#${subsection.anchor}` : `/page/${pageSlug}`}
+                      className="nav-subsection-item"
+                    >
+                      <span className="nav-toggle no-children" />
+                      <span>{subsection.title}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderNavItem = (page, depth = 0) => {
     const hasChildren = page.children && page.children.length > 0;
     const isExpanded = expandedPages[page.id] || page.is_expanded;
     const currentPath = location.pathname;
     const pagePath = page.slug === 'welcome' ? '/' : `/page/${page.slug}`;
-    const isActive = currentPath === pagePath;
+    const isActive = currentPath === pagePath || currentPath === `/edit/${page.slug}`;
+
+    // Extract sections from content for the active page
+    const sections = isActive && page.content ? extractSections(page.content) : [];
+    const hasSections = sections.length > 0;
 
     const childClass = depth === 1 ? 'child' : depth === 2 ? 'child-2' : '';
 
@@ -49,7 +111,7 @@ function Sidebar({ pages, userRole, onAddPage }) {
           to={pagePath}
           className={`nav-item ${childClass} ${isActive ? 'active' : ''}`}
         >
-          {hasChildren && (
+          {(hasChildren || hasSections) && (
             <span
               className={`nav-toggle ${isExpanded ? 'expanded' : 'collapsed'}`}
               onClick={(e) => {
@@ -58,9 +120,10 @@ function Sidebar({ pages, userRole, onAddPage }) {
               }}
             />
           )}
-          {!hasChildren && <span className="nav-toggle no-children" />}
+          {!hasChildren && !hasSections && <span className="nav-toggle no-children" />}
           <span>{page.title}</span>
         </Link>
+        {isActive && hasSections && renderSections(sections, page.slug)}
         {hasChildren && isExpanded && (
           <div>
             {page.children.map(child => renderNavItem(child, depth + 1))}

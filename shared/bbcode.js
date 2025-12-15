@@ -141,10 +141,74 @@ const parseBBCode = (text) => {
   return html;
 };
 
+// Extract sections and subsections from BBCode for navigation
+const extractSections = (text) => {
+  if (!text) return [];
+
+  const sections = [];
+
+  // Match [section=anchor]Title[/section] and [section]Title[/section]
+  const sectionRegex = /\[section(?:=([^\]]*))?\](.*?)\[\/section\]/gi;
+  // Match [subsection=anchor]Title[/subsection] and [subsection]Title[/subsection]
+  const subsectionRegex = /\[subsection(?:=([^\]]*))?\](.*?)\[\/subsection\]/gi;
+
+  // Find all sections and subsections with their positions
+  const allMatches = [];
+
+  let match;
+  while ((match = sectionRegex.exec(text)) !== null) {
+    allMatches.push({
+      type: 'section',
+      anchor: match[1] || null,
+      title: match[2],
+      index: match.index
+    });
+  }
+
+  while ((match = subsectionRegex.exec(text)) !== null) {
+    allMatches.push({
+      type: 'subsection',
+      anchor: match[1] || null,
+      title: match[2],
+      index: match.index
+    });
+  }
+
+  // Sort by position in document
+  allMatches.sort((a, b) => a.index - b.index);
+
+  // Build hierarchical structure
+  let currentSection = null;
+
+  allMatches.forEach(item => {
+    if (item.type === 'section') {
+      currentSection = {
+        title: item.title,
+        anchor: item.anchor,
+        subsections: []
+      };
+      sections.push(currentSection);
+    } else if (item.type === 'subsection') {
+      const subsection = {
+        title: item.title,
+        anchor: item.anchor
+      };
+      if (currentSection) {
+        currentSection.subsections.push(subsection);
+      } else {
+        // Subsection without a parent section - treat as top-level
+        sections.push({ ...subsection, subsections: [] });
+      }
+    }
+  });
+
+  return sections;
+};
+
 // Export for both Node.js (CommonJS) and ES6 modules (React)
 if (typeof module !== 'undefined' && module.exports) {
   // Node.js
-  module.exports = { parseBBCode };
+  module.exports = { parseBBCode, extractSections };
 } else if (typeof window !== 'undefined') {
   // Browser (fallback)
   window.parseBBCode = parseBBCode;

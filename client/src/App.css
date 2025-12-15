@@ -179,6 +179,50 @@ td {
   visibility: hidden;
 }
 
+/* Section navigation (within page) */
+.nav-sections {
+  margin-left: 15px;
+  border-left: 1px solid #3d4450;
+}
+
+.nav-section-item {
+  padding: 6px 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8b9cb5;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+  font-size: 13px;
+}
+
+.nav-section-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #E5E5E5;
+}
+
+.nav-subsections {
+  margin-left: 12px;
+}
+
+.nav-subsection-item {
+  padding: 4px 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7785;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+  font-size: 12px;
+}
+
+.nav-subsection-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #E5E5E5;
+}
+
 .add-page-btn {
   background: #67C1F5;
   border: none;

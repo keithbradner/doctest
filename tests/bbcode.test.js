@@ -1,4 +1,4 @@
-const { parseBBCode } = require('../server/bbcode');
+const { parseBBCode, extractSections } = require('../server/bbcode');
 
 // Test suite for BBCode parser
 const tests = [
@@ -337,10 +337,103 @@ tests.forEach((test, index) => {
 console.log('\n' + '='.repeat(50));
 console.log(`\nResults: ${passed} passed, ${failed} failed out of ${tests.length} tests`);
 
-if (failed === 0) {
+// extractSections tests
+const sectionTests = [
+  {
+    name: 'Extract single section with anchor',
+    input: '[section=intro]Introduction[/section]',
+    expected: [{ title: 'Introduction', anchor: 'intro', subsections: [] }]
+  },
+  {
+    name: 'Extract section without anchor',
+    input: '[section]Getting Started[/section]',
+    expected: [{ title: 'Getting Started', anchor: null, subsections: [] }]
+  },
+  {
+    name: 'Extract section with subsections',
+    input: '[section=main]Main[/section][subsection=sub1]Sub 1[/subsection][subsection=sub2]Sub 2[/subsection]',
+    expected: [{
+      title: 'Main',
+      anchor: 'main',
+      subsections: [
+        { title: 'Sub 1', anchor: 'sub1' },
+        { title: 'Sub 2', anchor: 'sub2' }
+      ]
+    }]
+  },
+  {
+    name: 'Extract multiple sections',
+    input: '[section=first]First[/section][section=second]Second[/section]',
+    expected: [
+      { title: 'First', anchor: 'first', subsections: [] },
+      { title: 'Second', anchor: 'second', subsections: [] }
+    ]
+  },
+  {
+    name: 'Extract complex structure',
+    input: '[section=a]Section A[/section][subsection=a1]A1[/subsection][section=b]Section B[/section][subsection=b1]B1[/subsection][subsection=b2]B2[/subsection]',
+    expected: [
+      { title: 'Section A', anchor: 'a', subsections: [{ title: 'A1', anchor: 'a1' }] },
+      { title: 'Section B', anchor: 'b', subsections: [{ title: 'B1', anchor: 'b1' }, { title: 'B2', anchor: 'b2' }] }
+    ]
+  },
+  {
+    name: 'Empty input returns empty array',
+    input: '',
+    expected: []
+  },
+  {
+    name: 'No sections returns empty array',
+    input: '[h1]Just a header[/h1]',
+    expected: []
+  },
+  {
+    name: 'Subsection without parent becomes top-level',
+    input: '[subsection=orphan]Orphan[/subsection]',
+    expected: [{ title: 'Orphan', anchor: 'orphan', subsections: [] }]
+  }
+];
+
+let sectionPassed = 0;
+let sectionFailed = 0;
+
+console.log('\n🧪 extractSections Tests\n' + '='.repeat(50) + '\n');
+
+sectionTests.forEach((test, index) => {
+  try {
+    const result = extractSections(test.input);
+    const matches = JSON.stringify(result) === JSON.stringify(test.expected);
+
+    if (matches) {
+      console.log(`✅ Section Test ${index + 1}: ${test.name}`);
+      sectionPassed++;
+    } else {
+      console.log(`❌ Section Test ${index + 1}: ${test.name}`);
+      console.log(`   Input:    ${test.input}`);
+      console.log(`   Expected: ${JSON.stringify(test.expected)}`);
+      console.log(`   Got:      ${JSON.stringify(result)}`);
+      sectionFailed++;
+    }
+  } catch (error) {
+    console.log(`❌ Section Test ${index + 1}: ${test.name} (Error)`);
+    console.log(`   Error: ${error.message}`);
+    sectionFailed++;
+  }
+});
+
+console.log('\n' + '='.repeat(50));
+console.log(`\nSection Results: ${sectionPassed} passed, ${sectionFailed} failed out of ${sectionTests.length} tests`);
+
+const totalPassed = passed + sectionPassed;
+const totalFailed = failed + sectionFailed;
+const totalTests = tests.length + sectionTests.length;
+
+console.log(`\nTotal: ${totalPassed} passed, ${totalFailed} failed out of ${totalTests} tests`);
+
+if (totalFailed === 0) {
   console.log('✅ All tests passed!\n');
   process.exit(0);
 } else {
-  console.log(`❌ ${failed} test(s) failed\n`);
+  console.log(`❌ ${totalFailed} test(s) failed\n`);
   process.exit(1);
 }

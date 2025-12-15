@@ -153,7 +153,7 @@ app.get('/api/auth/check', authenticate, async (req, res) => {
 app.get('/api/pages', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, slug, title, parent_id, display_order, is_expanded FROM pages WHERE deleted_at IS NULL ORDER BY display_order, id'
+      'SELECT id, slug, title, parent_id, display_order, is_expanded, content FROM pages WHERE deleted_at IS NULL ORDER BY display_order, id'
     );
     res.json(result.rows);
   } catch (err) {
