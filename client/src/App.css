@@ -11,6 +11,45 @@ body {
   overflow: hidden;
 }
 
+/* Tables */
+table {
+  width: 100%;
+  font-size: 13px;
+  font-family: "Motiva Sans", sans-serif;
+  font-weight: normal;
+  border-collapse: collapse;
+}
+
+table strong {
+  font-family: "Motiva Sans", sans-serif;
+  font-weight: normal;
+}
+
+th {
+  background: rgb(78, 81, 85);
+  padding: 5px 8px;
+  color: rgb(229, 229, 229);
+  font-family: "Motiva Sans", sans-serif;
+  font-weight: normal;
+  text-align: left;
+}
+
+tr {
+  background: rgb(29, 32, 39);
+}
+
+tr:nth-child(2n+1) {
+  background: rgb(34, 37, 43);
+}
+
+tr:hover {
+  outline: rgba(255, 255, 255, 0.4) solid 1px;
+}
+
+td {
+  padding: 5px 8px;
+}
+
 /* Header */
 .header {
   background: linear-gradient(to right, #1d6fa5, #2a93d5);
@@ -206,7 +245,7 @@ body {
 }
 
 .page-title {
-  font-size: 32px;
+  font-size: 34px;
   color: #E6E6E6;
   font-weight: 400;
 }
@@ -270,7 +309,7 @@ body {
 }
 
 .page-content {
-  line-height: 1.5;
+  line-height: 1.3em;
   color: rgb(172, 181, 190);
   font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
   font-weight: normal;
@@ -278,7 +317,7 @@ body {
 }
 
 .page-content h1 {
-  font-size: 22px;
+  font-size: 24px;
   color: white;
   margin-top: 40px;
   margin-bottom: 6px;
@@ -289,10 +328,10 @@ body {
 }
 
 .page-content h2 {
-  font-size: 18px;
+  font-size: 20px;
   color: rgb(221, 224, 228);
-  margin-top: 8px;
-  margin-bottom: 6px;
+  margin-top: 20px;
+  margin-bottom: 4px;
   padding-top: 5px;
   font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
   font-weight: 300;
@@ -301,7 +340,7 @@ body {
 
 .page-content h3 {
   font-size: 16px;
-  color: rgb(103, 193, 245);
+  color: rgb(221, 224, 228);
   margin-top: 8px;
   margin-bottom: 6px;
   font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
