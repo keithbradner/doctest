@@ -43,8 +43,22 @@ function Sidebar({ pages, userRole, onAddPage }) {
     }));
   };
 
-  const renderSections = (sections, pageSlug, baseDepth = 1) => {
+  // Helper to get depth class for indentation
+  const getDepthClass = (depth) => {
+    if (depth === 1) return 'child';
+    if (depth === 2) return 'child-2';
+    if (depth >= 3) return 'child-3';
+    return '';
+  };
+
+  const renderSections = (sections, pageSlug, pageDepth = 0) => {
     if (!sections || sections.length === 0) return null;
+
+    // Sections are one level deeper than the page
+    const sectionDepth = pageDepth + 1;
+    const subsectionDepth = pageDepth + 2;
+    const sectionDepthClass = getDepthClass(sectionDepth);
+    const subsectionDepthClass = getDepthClass(subsectionDepth);
 
     return (
       <div>
@@ -52,7 +66,6 @@ function Sidebar({ pages, userRole, onAddPage }) {
           const sectionKey = `${pageSlug}-section-${idx}`;
           const hasSubsections = section.subsections && section.subsections.length > 0;
           const isSectionExpanded = expandedSections[sectionKey];
-          const sectionDepthClass = baseDepth === 1 ? 'child' : 'child-2';
 
           return (
             <div key={sectionKey}>
@@ -78,7 +91,7 @@ function Sidebar({ pages, userRole, onAddPage }) {
                     <a
                       key={`${sectionKey}-sub-${subIdx}`}
                       href={subsection.anchor ? `/page/${pageSlug}#${encodeURIComponent(subsection.anchor)}` : `/page/${pageSlug}`}
-                      className="nav-item child-2"
+                      className={`nav-item ${subsectionDepthClass}`}
                     >
                       <span className="nav-toggle no-children" />
                       <span>{subsection.title}</span>
@@ -124,7 +137,7 @@ function Sidebar({ pages, userRole, onAddPage }) {
           {!hasChildren && !hasSections && <span className="nav-toggle no-children" />}
           <span>{page.title}</span>
         </Link>
-        {isActive && hasSections && renderSections(sections, page.slug)}
+        {isActive && hasSections && renderSections(sections, page.slug, depth)}
         {hasChildren && isExpanded && (
           <div>
             {page.children.map(child => renderNavItem(child, depth + 1))}
