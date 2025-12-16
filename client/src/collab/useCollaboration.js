@@ -1,6 +1,44 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { connectSocket } from './socketClient';
 
+/**
+ * Find the edit point and length change between old and new content.
+ * Returns { editStart, lengthDiff } where:
+ * - editStart: position where the edit began
+ * - lengthDiff: positive for insertions, negative for deletions
+ */
+function findEditDelta(oldContent, newContent) {
+  // Find first difference from start
+  let editStart = 0;
+  const minLen = Math.min(oldContent.length, newContent.length);
+  while (editStart < minLen && oldContent[editStart] === newContent[editStart]) {
+    editStart++;
+  }
+
+  // Find first difference from end
+  let oldEnd = oldContent.length;
+  let newEnd = newContent.length;
+  while (oldEnd > editStart && newEnd > editStart &&
+         oldContent[oldEnd - 1] === newContent[newEnd - 1]) {
+    oldEnd--;
+    newEnd--;
+  }
+
+  const lengthDiff = newContent.length - oldContent.length;
+  return { editStart, lengthDiff };
+}
+
+/**
+ * Transform a cursor position based on an edit.
+ * If the cursor is at or after the edit point, shift it by the length difference.
+ */
+function transformPosition(position, editStart, lengthDiff) {
+  if (position <= editStart) {
+    return position;
+  }
+  return Math.max(editStart, position + lengthDiff);
+}
+
 export function useCollaboration(pageId, initialContent = '', initialTitle = '') {
   const [content, setContent] = useState(initialContent);
   const [title, setTitle] = useState(initialTitle);
@@ -11,18 +49,66 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
   const [lastSaved, setLastSaved] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
+  const [editRanges, setEditRanges] = useState([]); // Track recent edits for highlighting
 
   const socketRef = useRef(null);
   const pendingChangeRef = useRef(null);
   const localChangeRef = useRef(false); // Track if change is local
+  const contentRef = useRef(initialContent); // Track content for cursor transformation
 
   // Update content when initial values change (page load)
   useEffect(() => {
     if (!localChangeRef.current) {
       setContent(initialContent);
       setTitle(initialTitle);
+      contentRef.current = initialContent;
     }
   }, [initialContent, initialTitle]);
+
+  // Add an edit range for highlighting (with automatic cleanup)
+  const addEditRange = useCallback((start, end, userId, color) => {
+    const timestamp = Date.now();
+    setEditRanges(prev => {
+      // Remove old ranges (older than 2 seconds) and add new one
+      const filtered = prev.filter(r => Date.now() - r.timestamp < 2000);
+      return [...filtered, { start, end, timestamp, userId, color }];
+    });
+  }, []);
+
+  // Clean up old edit ranges periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setEditRanges(prev => prev.filter(r => Date.now() - r.timestamp < 2000));
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Transform all cursor positions based on content change
+  const transformCursors = useCallback((oldContent, newContent, excludeUserId = null) => {
+    if (oldContent === newContent) return;
+
+    const { editStart, lengthDiff } = findEditDelta(oldContent, newContent);
+    if (lengthDiff === 0 && editStart === oldContent.length) return; // No actual change
+
+    setCursors(prev => {
+      const newCursors = {};
+      for (const [userId, cursorData] of Object.entries(prev)) {
+        // Skip the user who made the edit (their cursor is already correct)
+        if (excludeUserId !== null && parseInt(userId) === excludeUserId) {
+          newCursors[userId] = cursorData;
+          continue;
+        }
+
+        newCursors[userId] = {
+          ...cursorData,
+          position: transformPosition(cursorData.position || 0, editStart, lengthDiff),
+          selectionStart: transformPosition(cursorData.selectionStart || 0, editStart, lengthDiff),
+          selectionEnd: transformPosition(cursorData.selectionEnd || 0, editStart, lengthDiff)
+        };
+      }
+      return newCursors;
+    });
+  }, []);
 
   // Connect and join room on mount
   useEffect(() => {
@@ -52,6 +138,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
     const handleJoined = (data) => {
       console.log('Joined page:', data);
       if (data.draft) {
+        contentRef.current = data.draft.content;
         setContent(data.draft.content);
         setTitle(data.draft.title);
         setLastSaved(data.draft.lastModifiedAt);
@@ -93,7 +180,24 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
 
     const handleContentUpdated = (data) => {
       console.log('Content updated by:', data.username);
-      // Only update if it's from another user
+      // Transform cursor positions before updating content
+      const oldContent = contentRef.current;
+      transformCursors(oldContent, data.content, data.userId);
+
+      // Track the edit range for highlighting
+      const { editStart, lengthDiff } = findEditDelta(oldContent, data.content);
+      if (lengthDiff > 0) {
+        // Insertion - highlight the new text
+        // Get user's cursor color from presence
+        const userPresence = presence.find(p => p.user_id === data.userId);
+        const color = userPresence?.cursor_color
+          ? `${userPresence.cursor_color}40` // Add alpha for softer highlight
+          : 'rgba(255, 230, 0, 0.25)';
+        addEditRange(editStart, editStart + lengthDiff, data.userId, color);
+      }
+
+      // Update content ref and state
+      contentRef.current = data.content;
       localChangeRef.current = false;
       setContent(data.content);
       setTitle(data.title);
@@ -126,6 +230,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
 
     const handleReverted = (data) => {
       console.log('Reverted by:', data.revertedBy);
+      contentRef.current = data.content;
       localChangeRef.current = false;
       setContent(data.content);
       setTitle(data.title);
@@ -179,10 +284,16 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
       socket.off('reverted', handleReverted);
       socket.off('error', handleError);
     };
-  }, [pageId]);
+  }, [pageId, transformCursors, addEditRange, presence]);
 
   // Send content changes (debounced)
   const handleLocalChange = useCallback((newContent, newTitle) => {
+    // Transform remote cursor positions based on local edit
+    const oldContent = contentRef.current;
+    transformCursors(oldContent, newContent);
+
+    // Update content ref and state
+    contentRef.current = newContent;
     localChangeRef.current = true;
     setContent(newContent);
     setTitle(newTitle);
@@ -200,7 +311,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
         title: newTitle
       });
     }, 150); // 150ms debounce
-  }, [pageId]);
+  }, [pageId, transformCursors]);
 
   // Send cursor position (called on selection change)
   const handleCursorChange = useCallback((position, selectionStart, selectionEnd) => {
@@ -269,6 +380,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
     title,
     presence,
     cursors,
+    editRanges,
     hasDraft,
     isSaving,
     lastSaved,

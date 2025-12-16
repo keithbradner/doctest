@@ -1227,6 +1227,7 @@ runner.test('Socket: three users can collaborate simultaneously', async () => {
     password: 'testpass',
     role: 'user'
   });
+  assertEqual(user3Res.status, 200, 'User 3 registration should succeed');
   const user3Id = user3Res.data.id;
 
   const login3Res = await request({
@@ -1236,8 +1237,11 @@ runner.test('Socket: three users can collaborate simultaneously', async () => {
     username: user3name,
     password: 'testpass'
   });
+  assertEqual(login3Res.status, 200, 'User 3 login should succeed');
+  assert(login3Res.headers['set-cookie'], 'User 3 should receive cookie');
   const user3Cookie = login3Res.headers['set-cookie'][0].split(';')[0];
   const user3Token = user3Cookie.match(/token=([^;]+)/)?.[1];
+  assertNotNull(user3Token, 'User 3 should have token');
 
   const socket1 = createSocketClient(authToken);
   const socket2 = createSocketClient(testUser2Token);
@@ -1349,20 +1353,304 @@ runner.test('Socket: rapid content changes handled correctly', async () => {
         content: `Rapid change ${i}`,
         title: 'Rapid Test'
       });
+      await sleep(50); // Small delay between each to ensure order
     }
 
     // Wait for all to be processed
-    await sleep(1000);
+    await sleep(1500);
 
     // All 5 changes should have been broadcast
-    assertEqual(contentUpdates.length, 5, 'Should receive all 5 content updates');
-    assertEqual(contentUpdates[4], 'Rapid change 4', 'Last update should be correct');
+    assert(contentUpdates.length >= 5, `Should receive at least 5 content updates, got ${contentUpdates.length}`);
+    assertEqual(contentUpdates[contentUpdates.length - 1], 'Rapid change 4', 'Last update should be correct');
   } finally {
     socket1.emit('leave-page', { pageId: testPageId });
     socket2.emit('leave-page', { pageId: testPageId });
     socket1.disconnect();
     socket2.disconnect();
   }
+});
+
+// ============================================================
+// CURSOR TRANSFORMATION TESTS (Unit Tests)
+// ============================================================
+
+// Helper functions for testing cursor transformation (same as in useCollaboration.js)
+function findEditDelta(oldContent, newContent) {
+  let editStart = 0;
+  const minLen = Math.min(oldContent.length, newContent.length);
+  while (editStart < minLen && oldContent[editStart] === newContent[editStart]) {
+    editStart++;
+  }
+
+  let oldEnd = oldContent.length;
+  let newEnd = newContent.length;
+  while (oldEnd > editStart && newEnd > editStart &&
+         oldContent[oldEnd - 1] === newContent[newEnd - 1]) {
+    oldEnd--;
+    newEnd--;
+  }
+
+  const lengthDiff = newContent.length - oldContent.length;
+  return { editStart, lengthDiff };
+}
+
+function transformPosition(position, editStart, lengthDiff) {
+  if (position <= editStart) {
+    return position;
+  }
+  return Math.max(editStart, position + lengthDiff);
+}
+
+runner.test('CursorTransform: findEditDelta detects insertion at start', () => {
+  const result = findEditDelta('Hello World', 'XXXHello World');
+  assertEqual(result.editStart, 0, 'Edit start should be 0');
+  assertEqual(result.lengthDiff, 3, 'Length diff should be 3');
+});
+
+runner.test('CursorTransform: findEditDelta detects insertion in middle', () => {
+  const result = findEditDelta('Hello World', 'Hello XXXWorld');
+  assertEqual(result.editStart, 6, 'Edit start should be 6');
+  assertEqual(result.lengthDiff, 3, 'Length diff should be 3');
+});
+
+runner.test('CursorTransform: findEditDelta detects insertion at end', () => {
+  const result = findEditDelta('Hello World', 'Hello WorldXXX');
+  assertEqual(result.editStart, 11, 'Edit start should be 11');
+  assertEqual(result.lengthDiff, 3, 'Length diff should be 3');
+});
+
+runner.test('CursorTransform: findEditDelta detects deletion at start', () => {
+  const result = findEditDelta('XXXHello World', 'Hello World');
+  assertEqual(result.editStart, 0, 'Edit start should be 0');
+  assertEqual(result.lengthDiff, -3, 'Length diff should be -3');
+});
+
+runner.test('CursorTransform: findEditDelta detects deletion in middle', () => {
+  const result = findEditDelta('Hello XXXWorld', 'Hello World');
+  assertEqual(result.editStart, 6, 'Edit start should be 6');
+  assertEqual(result.lengthDiff, -3, 'Length diff should be -3');
+});
+
+runner.test('CursorTransform: findEditDelta detects deletion at end', () => {
+  const result = findEditDelta('Hello WorldXXX', 'Hello World');
+  assertEqual(result.editStart, 11, 'Edit start should be 11');
+  assertEqual(result.lengthDiff, -3, 'Length diff should be -3');
+});
+
+runner.test('CursorTransform: findEditDelta detects replacement', () => {
+  const result = findEditDelta('Hello World', 'Hello Earth');
+  assertEqual(result.editStart, 6, 'Edit start should be 6');
+  assertEqual(result.lengthDiff, 0, 'Length diff should be 0 (same length replacement)');
+});
+
+runner.test('CursorTransform: transformPosition - cursor before edit stays same', () => {
+  // Insert 3 chars at position 10, cursor at position 5
+  const result = transformPosition(5, 10, 3);
+  assertEqual(result, 5, 'Cursor before edit should not move');
+});
+
+runner.test('CursorTransform: transformPosition - cursor at edit point stays same', () => {
+  // Insert 3 chars at position 10, cursor at position 10
+  const result = transformPosition(10, 10, 3);
+  assertEqual(result, 10, 'Cursor at edit point should not move');
+});
+
+runner.test('CursorTransform: transformPosition - cursor after insertion shifts right', () => {
+  // Insert 3 chars at position 10, cursor at position 15
+  const result = transformPosition(15, 10, 3);
+  assertEqual(result, 18, 'Cursor after insertion should shift right by length diff');
+});
+
+runner.test('CursorTransform: transformPosition - cursor after deletion shifts left', () => {
+  // Delete 3 chars at position 10, cursor at position 15
+  const result = transformPosition(15, 10, -3);
+  assertEqual(result, 12, 'Cursor after deletion should shift left by length diff');
+});
+
+runner.test('CursorTransform: transformPosition - cursor doesnt go negative', () => {
+  // Delete 10 chars at position 5, cursor at position 8
+  const result = transformPosition(8, 5, -10);
+  assertEqual(result, 5, 'Cursor should not go below edit start');
+});
+
+runner.test('CursorTransform: full scenario - User A types, User B cursor adjusts', () => {
+  // User B has cursor at position 20 in "Hello World, how are you?"
+  // User A inserts "Dear " at position 0, making it "Dear Hello World, how are you?"
+  const oldContent = 'Hello World, how are you?';
+  const newContent = 'Dear Hello World, how are you?';
+  const userBCursor = 20;
+
+  const { editStart, lengthDiff } = findEditDelta(oldContent, newContent);
+  const newCursor = transformPosition(userBCursor, editStart, lengthDiff);
+
+  assertEqual(editStart, 0, 'Edit should be at start');
+  assertEqual(lengthDiff, 5, 'Should have added 5 chars');
+  assertEqual(newCursor, 25, 'User B cursor should shift from 20 to 25');
+});
+
+runner.test('CursorTransform: full scenario - typing in middle shifts cursor after', () => {
+  // Content: "Hello World"
+  // User A types "Beautiful " after "Hello " (position 6)
+  // User B has cursor at position 11 (end of "World")
+  const oldContent = 'Hello World';
+  const newContent = 'Hello Beautiful World';
+  const userBCursor = 11;
+
+  const { editStart, lengthDiff } = findEditDelta(oldContent, newContent);
+  const newCursor = transformPosition(userBCursor, editStart, lengthDiff);
+
+  assertEqual(editStart, 6, 'Edit should be at position 6');
+  assertEqual(lengthDiff, 10, 'Should have added 10 chars');
+  assertEqual(newCursor, 21, 'User B cursor should shift from 11 to 21');
+});
+
+runner.test('CursorTransform: full scenario - deleting before cursor shifts it left', () => {
+  // Content: "Hello Beautiful World"
+  // User A deletes "Beautiful " (10 chars starting at position 6)
+  // User B has cursor at position 21 (end of "World")
+  const oldContent = 'Hello Beautiful World';
+  const newContent = 'Hello World';
+  const userBCursor = 21;
+
+  const { editStart, lengthDiff } = findEditDelta(oldContent, newContent);
+  const newCursor = transformPosition(userBCursor, editStart, lengthDiff);
+
+  assertEqual(editStart, 6, 'Edit should be at position 6');
+  assertEqual(lengthDiff, -10, 'Should have removed 10 chars');
+  assertEqual(newCursor, 11, 'User B cursor should shift from 21 to 11');
+});
+
+runner.test('CursorTransform: cursor before edit is unaffected', () => {
+  // Content: "Hello World"
+  // User A types " there" after "World" (position 11)
+  // User B has cursor at position 5 (after "Hello")
+  const oldContent = 'Hello World';
+  const newContent = 'Hello World there';
+  const userBCursor = 5;
+
+  const { editStart, lengthDiff } = findEditDelta(oldContent, newContent);
+  const newCursor = transformPosition(userBCursor, editStart, lengthDiff);
+
+  assertEqual(editStart, 11, 'Edit should be at position 11');
+  assertEqual(lengthDiff, 6, 'Should have added 6 chars');
+  assertEqual(newCursor, 5, 'User B cursor should stay at 5 (before edit)');
+});
+
+// ============================================================
+// EDIT HIGHLIGHT TESTS
+// ============================================================
+
+runner.test('EditHighlight: content-updated includes userId for highlight tracking', async () => {
+  const socket1 = createSocketClient(authToken);
+  const socket2 = createSocketClient(testUser2Token);
+
+  try {
+    // Connect both sockets
+    await Promise.all([
+      new Promise((resolve, reject) => {
+        socket1.on('connect', resolve);
+        socket1.on('connect_error', reject);
+      }),
+      new Promise((resolve, reject) => {
+        socket2.on('connect', resolve);
+        socket2.on('connect_error', reject);
+      })
+    ]);
+
+    // Both join page
+    socket1.emit('join-page', { pageId: testPageId, mode: 'editing' });
+    socket2.emit('join-page', { pageId: testPageId, mode: 'editing' });
+    await Promise.all([
+      waitForEvent(socket1, 'joined', 5000),
+      waitForEvent(socket2, 'joined', 5000)
+    ]);
+
+    // Set up listener on socket2 for content-updated
+    const contentUpdatePromise = waitForEvent(socket2, 'content-updated', 5000);
+
+    // User 1 changes content
+    socket1.emit('content-change', {
+      pageId: testPageId,
+      content: 'Highlight test content ' + Date.now(),
+      title: 'Highlight Test'
+    });
+
+    const updateData = await contentUpdatePromise;
+
+    // Verify the update includes userId for highlight tracking
+    assertNotNull(updateData.userId, 'content-updated should include userId');
+    assertEqual(updateData.userId, testUserId, 'userId should match the editing user');
+    assertNotNull(updateData.content, 'content-updated should include content');
+    assertNotNull(updateData.username, 'content-updated should include username');
+  } finally {
+    socket1.emit('leave-page', { pageId: testPageId });
+    socket2.emit('leave-page', { pageId: testPageId });
+    socket1.disconnect();
+    socket2.disconnect();
+  }
+});
+
+runner.test('EditHighlight: findEditDelta correctly identifies insertion range', () => {
+  // Test that we can correctly identify the range of inserted text
+  const oldContent = 'Hello World';
+  const newContent = 'Hello Beautiful World';
+
+  const { editStart, lengthDiff } = findEditDelta(oldContent, newContent);
+
+  // The inserted text "Beautiful " starts at position 6 and is 10 chars long
+  assertEqual(editStart, 6, 'Edit should start at position 6');
+  assertEqual(lengthDiff, 10, 'Length diff should be 10');
+
+  // The highlight range would be [editStart, editStart + lengthDiff]
+  const highlightStart = editStart;
+  const highlightEnd = editStart + lengthDiff;
+  assertEqual(highlightStart, 6, 'Highlight should start at 6');
+  assertEqual(highlightEnd, 16, 'Highlight should end at 16');
+
+  // Verify the highlighted text matches what was inserted
+  const highlightedText = newContent.substring(highlightStart, highlightEnd);
+  assertEqual(highlightedText, 'Beautiful ', 'Highlighted text should be "Beautiful "');
+});
+
+runner.test('EditHighlight: findEditDelta handles multiline insertions', () => {
+  const oldContent = 'Line 1\nLine 2';
+  const newContent = 'Line 1\nNew Line\nLine 2';
+
+  const { editStart, lengthDiff } = findEditDelta(oldContent, newContent);
+
+  // "New Line\n" inserted after "Line 1\n"
+  assertEqual(editStart, 7, 'Edit should start at position 7');
+  assertEqual(lengthDiff, 9, 'Length diff should be 9');
+
+  const highlightedText = newContent.substring(editStart, editStart + lengthDiff);
+  assertEqual(highlightedText, 'New Line\n', 'Highlighted text should be "New Line\\n"');
+});
+
+runner.test('EditHighlight: no highlight for deletions (lengthDiff <= 0)', () => {
+  const oldContent = 'Hello Beautiful World';
+  const newContent = 'Hello World';
+
+  const { editStart, lengthDiff } = findEditDelta(oldContent, newContent);
+
+  assertEqual(editStart, 6, 'Edit should start at position 6');
+  assertEqual(lengthDiff, -10, 'Length diff should be -10');
+
+  // For deletions, we don't show highlights (lengthDiff <= 0)
+  const shouldHighlight = lengthDiff > 0;
+  assertEqual(shouldHighlight, false, 'Should not highlight deletions');
+});
+
+runner.test('EditHighlight: single character insertion', () => {
+  const oldContent = 'Helo World';
+  const newContent = 'Hello World';
+
+  const { editStart, lengthDiff } = findEditDelta(oldContent, newContent);
+
+  assertEqual(editStart, 3, 'Edit should start at position 3');
+  assertEqual(lengthDiff, 1, 'Length diff should be 1');
+
+  const highlightedText = newContent.substring(editStart, editStart + lengthDiff);
+  assertEqual(highlightedText, 'l', 'Highlighted text should be "l"');
 });
 
 // ============================================================

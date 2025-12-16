@@ -5,6 +5,7 @@ import { parseBBCode } from '../utils/bbcode';
 import { useCollaboration } from '../collab/useCollaboration';
 import PresenceBar from '../collab/PresenceBar';
 import CursorOverlay from '../collab/CursorOverlay';
+import EditHighlight from '../collab/EditHighlight';
 import CollabControls from '../collab/CollabControls';
 
 function PageEdit({ slug, onUpdate, username, userId }) {
@@ -18,12 +19,13 @@ function PageEdit({ slug, onUpdate, username, userId }) {
   const textareaRef = useRef(null);
   const navigate = useNavigate();
 
-  // Collaboration hook - manages content, title, presence, cursors
+  // Collaboration hook - manages content, title, presence, cursors, edit highlights
   const {
     content,
     title,
     presence,
     cursors,
+    editRanges,
     hasDraft,
     isSaving,
     lastSaved,
@@ -431,9 +433,14 @@ function PageEdit({ slug, onUpdate, username, userId }) {
     </div>
   );
 
-  // Render the textarea with cursor overlay
+  // Render the textarea with cursor overlay and edit highlights
   const renderTextarea = (className = 'editor-textarea') => (
     <div className="editor-textarea-container">
+      <EditHighlight
+        textareaRef={textareaRef}
+        editRanges={editRanges}
+        content={content}
+      />
       <textarea
         ref={textareaRef}
         className={className}
