@@ -38,6 +38,11 @@ const initDB = async () => {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'user'
     `);
 
+    // Add cursor_color column for collaborative editing
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS cursor_color VARCHAR(7)
+    `);
+
     // Create pages table
     await client.query(`
       CREATE TABLE IF NOT EXISTS pages (
@@ -114,6 +119,46 @@ const initDB = async () => {
     `);
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_page_views_viewed_at ON page_views(viewed_at)
+    `);
+
+    // Create page_drafts table for collaborative editing
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS page_drafts (
+        id SERIAL PRIMARY KEY,
+        page_id INTEGER UNIQUE REFERENCES pages(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        last_modified_by INTEGER REFERENCES users(id),
+        last_modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create editing_sessions table for tracking active editors
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS editing_sessions (
+        id SERIAL PRIMARY KEY,
+        page_id INTEGER REFERENCES pages(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        socket_id VARCHAR(100) NOT NULL,
+        cursor_position INTEGER DEFAULT 0,
+        selection_start INTEGER,
+        selection_end INTEGER,
+        mode VARCHAR(20) DEFAULT 'editing',
+        last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(page_id, user_id)
+      )
+    `);
+
+    // Create indexes for editing sessions
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_editing_sessions_page_id ON editing_sessions(page_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_editing_sessions_socket_id ON editing_sessions(socket_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_page_drafts_page_id ON page_drafts(page_id)
     `);
 
     console.log('Database tables initialized successfully');

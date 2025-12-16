@@ -15,7 +15,23 @@
       "Bash(npx eslint:*)",
       "Bash(cat:*)",
       "Bash(npm run build:client:*)",
-      "Bash(ESLINT_NO_DEV_ERRORS=true npx eslint:*)"
+      "Bash(ESLINT_NO_DEV_ERRORS=true npx eslint:*)",
+      "Bash(where:*)",
+      "Bash(pg_isready:*)",
+      "Bash(winget:*)",
+      "Bash(choco:*)",
+      "Bash(dir \"C:\\Program Files\\PostgreSQL\")",
+      "Bash(set PATH=%PATH%)",
+      "Bash(C:Program FilesPostgreSQL17bin)",
+      "Bash(\"C:/Program Files/PostgreSQL/17/bin/pg_isready\" -h localhost)",
+      "Bash(\"C:/Program Files/PostgreSQL/17/bin/psql\" -U postgres -h localhost -c \"SELECT 1\")",
+      "Bash(kill:*)",
+      "Bash(PGPASSWORD=postgres \"C:/Program Files/PostgreSQL/17/bin/createdb\":*)",
+      "Bash(npm run seed:*)",
+      "Bash(npm run server:*)",
+      "Bash(npm run test:collab:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)"
     ]
   }
 }

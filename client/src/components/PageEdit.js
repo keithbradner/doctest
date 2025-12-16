@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { parseBBCode } from '../utils/bbcode';
+import { useCollaboration } from '../collab/useCollaboration';
+import PresenceBar from '../collab/PresenceBar';
+import CursorOverlay from '../collab/CursorOverlay';
+import CollabControls from '../collab/CollabControls';
 
-function PageEdit({ slug, onUpdate }) {
+function PageEdit({ slug, onUpdate, username, userId }) {
   const [page, setPage] = useState(null);
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
   const [parentId, setParentId] = useState('');
   const [allPages, setAllPages] = useState([]);
   const [activeTab, setActiveTab] = useState('edit');
@@ -15,6 +17,23 @@ function PageEdit({ slug, onUpdate }) {
   const [loading, setLoading] = useState(true);
   const textareaRef = useRef(null);
   const navigate = useNavigate();
+
+  // Collaboration hook - manages content, title, presence, cursors
+  const {
+    content,
+    title,
+    presence,
+    cursors,
+    hasDraft,
+    isSaving,
+    lastSaved,
+    isConnected,
+    error: collabError,
+    handleLocalChange,
+    handleCursorChange,
+    publish,
+    revert
+  } = useCollaboration(page?.id, page?.content || '', page?.title || '');
 
   useEffect(() => {
     const loadData = async () => {
@@ -25,8 +44,6 @@ function PageEdit({ slug, onUpdate }) {
           axios.get('/api/pages')
         ]);
         setPage(pageResponse.data);
-        setTitle(pageResponse.data.title);
-        setContent(pageResponse.data.content);
         setParentId(pageResponse.data.parent_id || '');
         setAllPages(pagesResponse.data);
       } catch (err) {
@@ -41,7 +58,6 @@ function PageEdit({ slug, onUpdate }) {
 
   useEffect(() => {
     const generatePreview = () => {
-      // Use shared BBCode parser (same as server-side)
       const html = parseBBCode(content);
       setPreview(html);
     };
@@ -51,24 +67,36 @@ function PageEdit({ slug, onUpdate }) {
     }
   }, [activeTab, content, splitMode]);
 
+  // Track cursor/selection changes
+  const handleSelect = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      handleCursorChange(
+        textarea.selectionEnd,
+        textarea.selectionStart,
+        textarea.selectionEnd
+      );
+    }
+  }, [handleCursorChange]);
+
   const insertBBCode = (openTag, closeTag = null) => {
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const selectedText = content.substring(start, end);
 
-    let newText;
+    let newContent;
     if (closeTag) {
-      newText = content.substring(0, start) + openTag + selectedText + closeTag + content.substring(end);
+      newContent = content.substring(0, start) + openTag + selectedText + closeTag + content.substring(end);
       textarea.selectionStart = start + openTag.length;
       textarea.selectionEnd = start + openTag.length + selectedText.length;
     } else {
-      newText = content.substring(0, start) + openTag + content.substring(end);
+      newContent = content.substring(0, start) + openTag + content.substring(end);
       textarea.selectionStart = start + openTag.length;
       textarea.selectionEnd = start + openTag.length;
     }
 
-    setContent(newText);
+    handleLocalChange(newContent, title);
     textarea.focus();
   };
 
@@ -90,24 +118,33 @@ function PageEdit({ slug, onUpdate }) {
     }
   };
 
-  const handleSave = async () => {
+  const handlePublish = async () => {
     try {
-      await axios.put(`/api/pages/${slug}`, {
-        title,
-        content,
-        parent_id: parentId || null,
-        display_order: page.display_order,
-        is_expanded: page.is_expanded
-      });
+      await publish();
       onUpdate();
       navigate(slug === 'welcome' ? '/' : `/page/${slug}`);
     } catch (err) {
-      console.error('Error saving page:', err);
-      alert('Failed to save page');
+      console.error('Error publishing page:', err);
+      alert('Failed to publish: ' + err.message);
+    }
+  };
+
+  const handleRevert = async () => {
+    if (!window.confirm('Discard all unsaved changes and revert to the last published version?')) {
+      return;
+    }
+    try {
+      await revert();
+    } catch (err) {
+      console.error('Error reverting:', err);
+      alert('Failed to revert: ' + err.message);
     }
   };
 
   const handleCancel = () => {
+    if (hasDraft && !window.confirm('You have unsaved changes. Are you sure you want to leave?')) {
+      return;
+    }
     navigate(slug === 'welcome' ? '/' : `/page/${slug}`);
   };
 
@@ -128,11 +165,9 @@ function PageEdit({ slug, onUpdate }) {
       let blob;
 
       if (imgUrl.startsWith('data:')) {
-        // Handle data URLs (base64 encoded images)
         const response = await fetch(imgUrl);
         blob = await response.blob();
       } else {
-        // For external URLs, try to fetch (may fail due to CORS)
         const response = await fetch(imgUrl, { mode: 'cors' });
         if (!response.ok) return null;
         blob = await response.blob();
@@ -147,7 +182,6 @@ function PageEdit({ slug, onUpdate }) {
 
       return uploadResponse.data.url;
     } catch (err) {
-      // CORS or network error - silently skip this image
       console.error('Error fetching/uploading image:', err);
       return null;
     }
@@ -156,7 +190,7 @@ function PageEdit({ slug, onUpdate }) {
   const handlePaste = async (e) => {
     const clipboardData = e.clipboardData;
 
-    // Check for pasted images first (screenshots, direct image pastes)
+    // Check for pasted images first
     const items = clipboardData.items;
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.startsWith('image/')) {
@@ -178,7 +212,7 @@ function PageEdit({ slug, onUpdate }) {
 
           const imgTag = `[img]${response.data.url}[/img]`;
           const newContent = content.substring(0, start) + imgTag + content.substring(end);
-          setContent(newContent);
+          handleLocalChange(newContent, title);
 
           setTimeout(() => {
             textarea.selectionStart = start + imgTag.length;
@@ -195,7 +229,7 @@ function PageEdit({ slug, onUpdate }) {
 
     const html = clipboardData.getData('text/html');
 
-    // Check if HTML contains images (e.g., from Google Docs)
+    // Check if HTML contains images
     if (html) {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
@@ -212,7 +246,6 @@ function PageEdit({ slug, onUpdate }) {
         for (const img of images) {
           const src = img.getAttribute('src');
           if (src) {
-            // Try to upload the image
             const uploadedUrl = await uploadImageFromUrl(src);
             if (uploadedUrl) {
               insertedText += `[img]${uploadedUrl}[/img]\n`;
@@ -222,7 +255,7 @@ function PageEdit({ slug, onUpdate }) {
 
         if (insertedText) {
           const newContent = content.substring(0, start) + insertedText.trim() + content.substring(end);
-          setContent(newContent);
+          handleLocalChange(newContent, title);
 
           setTimeout(() => {
             textarea.selectionStart = start + insertedText.trim().length;
@@ -235,11 +268,9 @@ function PageEdit({ slug, onUpdate }) {
     }
 
     if (html) {
-      // Parse HTML and convert to BBCode
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
 
-      // Check if there's any meaningful formatting to convert
       const hasLinks = doc.querySelectorAll('a[href]').length > 0;
       const hasBold = doc.querySelectorAll('b, strong').length > 0;
       const hasItalic = doc.querySelectorAll('i, em').length > 0;
@@ -247,24 +278,19 @@ function PageEdit({ slug, onUpdate }) {
       const hasLists = doc.querySelectorAll('ul, ol').length > 0;
 
       if (!hasLinks && !hasBold && !hasItalic && !hasUnderline && !hasLists) {
-        // No formatting to convert, let default paste handle it
         return;
       }
 
-      // Check if body has a single wrapper element that contains all content
-      // This detects when apps wrap everything in a formatting tag
       const isWrapperElement = (node, tagNames) => {
         if (node.nodeType !== Node.ELEMENT_NODE) return false;
         const tagName = node.tagName.toLowerCase();
         if (!tagNames.includes(tagName)) return false;
-        // Check if this is the only meaningful child of its parent
         const siblings = Array.from(node.parentNode.childNodes).filter(n =>
           n.nodeType === Node.ELEMENT_NODE || (n.nodeType === Node.TEXT_NODE && n.textContent.trim())
         );
         return siblings.length === 1;
       };
 
-      // Convert HTML nodes to BBCode
       const convertNode = (node, isTopLevel = false) => {
         if (node.nodeType === Node.TEXT_NODE) {
           return node.textContent;
@@ -274,7 +300,6 @@ function PageEdit({ slug, onUpdate }) {
           const tagName = node.tagName.toLowerCase();
           let childContent = Array.from(node.childNodes).map(n => convertNode(n, false)).join('');
 
-          // Links
           if (tagName === 'a' && node.href) {
             const href = node.getAttribute('href');
             if (childContent.trim() === href) {
@@ -283,7 +308,6 @@ function PageEdit({ slug, onUpdate }) {
             return `[url=${href}]${childContent}[/url]`;
           }
 
-          // Bold - skip if it's a top-level wrapper
           if (tagName === 'b' || tagName === 'strong') {
             if (isTopLevel && isWrapperElement(node, ['b', 'strong'])) {
               return childContent;
@@ -291,7 +315,6 @@ function PageEdit({ slug, onUpdate }) {
             return `[b]${childContent}[/b]`;
           }
 
-          // Italic - skip if it's a top-level wrapper
           if (tagName === 'i' || tagName === 'em') {
             if (isTopLevel && isWrapperElement(node, ['i', 'em'])) {
               return childContent;
@@ -299,7 +322,6 @@ function PageEdit({ slug, onUpdate }) {
             return `[i]${childContent}[/i]`;
           }
 
-          // Underline - skip if it's a top-level wrapper
           if (tagName === 'u') {
             if (isTopLevel && isWrapperElement(node, ['u'])) {
               return childContent;
@@ -307,7 +329,6 @@ function PageEdit({ slug, onUpdate }) {
             return `[u]${childContent}[/u]`;
           }
 
-          // Lists
           if (tagName === 'ul') {
             const items = Array.from(node.querySelectorAll(':scope > li'))
               .map(li => `[*]${convertNode(li, false).trim()}`)
@@ -324,7 +345,6 @@ function PageEdit({ slug, onUpdate }) {
             return childContent;
           }
 
-          // Line breaks and blocks
           if (tagName === 'br') {
             return '\n';
           }
@@ -343,7 +363,6 @@ function PageEdit({ slug, onUpdate }) {
         .join('')
         .trim();
 
-      // Only use converted text if it actually contains BBCode
       if (convertedText.includes('[url') || convertedText.includes('[b]') ||
           convertedText.includes('[i]') || convertedText.includes('[u]') ||
           convertedText.includes('[list]') || convertedText.includes('[olist]')) {
@@ -354,7 +373,7 @@ function PageEdit({ slug, onUpdate }) {
         const end = textarea.selectionEnd;
 
         const newContent = content.substring(0, start) + convertedText + content.substring(end);
-        setContent(newContent);
+        handleLocalChange(newContent, title);
 
         setTimeout(() => {
           textarea.selectionStart = start + convertedText.length;
@@ -364,6 +383,76 @@ function PageEdit({ slug, onUpdate }) {
       }
     }
   };
+
+  const handleContentChange = (e) => {
+    handleLocalChange(e.target.value, title);
+  };
+
+  const handleTitleChange = (e) => {
+    handleLocalChange(content, e.target.value);
+  };
+
+  // Render the editor toolbar
+  const renderToolbar = () => (
+    <div className="editor-toolbar">
+      <button className="toolbar-btn" onClick={() => insertBBCode('[h1]', '[/h1]')}>H1</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[h2]', '[/h2]')}>H2</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[h3]', '[/h3]')}>H3</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[section=]', '[/section]')} title="Section with anchor (appears in nav)">Section</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[subsection=]', '[/subsection]')} title="Subsection with anchor (appears in nav)">Subsect</button>
+      <div className="toolbar-separator"></div>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[b]', '[/b]')}><strong>B</strong></button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[i]', '[/i]')}><em>I</em></button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[u]', '[/u]')}><u>U</u></button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[strike]', '[/strike]')}>S</button>
+      <div className="toolbar-separator"></div>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[url=]', '[/url]')}>Link</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[doclink=]', '[/doclink]')} title="Link to another wiki page by slug">DocLink</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[list]\n[*]', '\n[/list]')}>List</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[olist]\n[*]', '\n[/olist]')}>OList</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[code]', '[/code]')}>Code</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[quote]', '[/quote]')}>Quote</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[callout]', '[/callout]')}>Callout</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[spoiler]', '[/spoiler]')}>Spoiler</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[todo=]', '[/todo]')} title="TODO note with tooltip">TODO</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[hr]')}>HR</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('\n\n')} title="Insert blank line">⏎</button>
+      <button className="toolbar-btn" onClick={() => insertBBCode('[previewyoutube]', '[/previewyoutube]')} title="YouTube video (paste video ID)">YouTube</button>
+      <div className="toolbar-separator"></div>
+      <label className="toolbar-btn image-upload-btn">
+        Upload Image
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          style={{ display: 'none' }}
+        />
+      </label>
+    </div>
+  );
+
+  // Render the textarea with cursor overlay
+  const renderTextarea = (className = 'editor-textarea') => (
+    <div className="editor-textarea-container">
+      <textarea
+        ref={textareaRef}
+        className={className}
+        value={content}
+        onChange={handleContentChange}
+        onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
+        onSelect={handleSelect}
+        onClick={handleSelect}
+        onKeyUp={handleSelect}
+      />
+      <CursorOverlay
+        textareaRef={textareaRef}
+        cursors={cursors}
+        content={content}
+        currentUserId={userId}
+      />
+    </div>
+  );
 
   if (loading) {
     return <div className="loading">Loading...</div>;
@@ -385,18 +474,29 @@ function PageEdit({ slug, onUpdate }) {
           <button className="cancel-btn" onClick={handleCancel}>
             Cancel
           </button>
-          <button className="save-btn" onClick={handleSave}>
-            Save Changes
-          </button>
         </div>
       </div>
+
+      {/* Presence Bar - shows who else is editing/viewing */}
+      <PresenceBar presence={presence} currentUsername={username} />
+
+      {/* Collaboration Controls - connection status, draft status, publish/revert */}
+      <CollabControls
+        hasDraft={hasDraft}
+        isSaving={isSaving}
+        lastSaved={lastSaved}
+        onPublish={handlePublish}
+        onRevert={handleRevert}
+        isConnected={isConnected}
+        error={collabError}
+      />
 
       <div className="form-group">
         <label>Page Title</label>
         <input
           type="text"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={handleTitleChange}
         />
       </div>
 
@@ -447,49 +547,8 @@ function PageEdit({ slug, onUpdate }) {
           <div className="editor-split-pane">
             <h3 className="split-pane-title">Editor</h3>
             <div className="editor-container">
-              <div className="editor-toolbar">
-                <button className="toolbar-btn" onClick={() => insertBBCode('[h1]', '[/h1]')}>H1</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[h2]', '[/h2]')}>H2</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[h3]', '[/h3]')}>H3</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[section=]', '[/section]')} title="Section with anchor (appears in nav)">Section</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[subsection=]', '[/subsection]')} title="Subsection with anchor (appears in nav)">Subsect</button>
-                <div className="toolbar-separator"></div>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[b]', '[/b]')}><strong>B</strong></button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[i]', '[/i]')}><em>I</em></button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[u]', '[/u]')}><u>U</u></button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[strike]', '[/strike]')}>S</button>
-                <div className="toolbar-separator"></div>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[url=]', '[/url]')}>Link</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[doclink=]', '[/doclink]')} title="Link to another wiki page by slug">DocLink</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[list]\n[*]', '\n[/list]')}>List</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[olist]\n[*]', '\n[/olist]')}>OList</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[code]', '[/code]')}>Code</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[quote]', '[/quote]')}>Quote</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[callout]', '[/callout]')}>Callout</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[spoiler]', '[/spoiler]')}>Spoiler</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[todo=]', '[/todo]')} title="TODO note with tooltip">TODO</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[hr]')}>HR</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('\n\n')} title="Insert blank line">⏎</button>
-                <button className="toolbar-btn" onClick={() => insertBBCode('[previewyoutube]', '[/previewyoutube]')} title="YouTube video (paste video ID)">YouTube</button>
-                <div className="toolbar-separator"></div>
-                <label className="toolbar-btn image-upload-btn">
-                  Upload Image
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    style={{ display: 'none' }}
-                  />
-                </label>
-              </div>
-              <textarea
-                ref={textareaRef}
-                className="editor-textarea split-editor-textarea"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
-              />
+              {renderToolbar()}
+              {renderTextarea('editor-textarea split-editor-textarea')}
             </div>
           </div>
           <div className="editor-split-pane">
@@ -502,49 +561,8 @@ function PageEdit({ slug, onUpdate }) {
       ) : (
         activeTab === 'edit' ? (
           <div className="editor-container">
-            <div className="editor-toolbar">
-              <button className="toolbar-btn" onClick={() => insertBBCode('[h1]', '[/h1]')}>H1</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[h2]', '[/h2]')}>H2</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[h3]', '[/h3]')}>H3</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[section=]', '[/section]')} title="Section with anchor (appears in nav)">Section</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[subsection=]', '[/subsection]')} title="Subsection with anchor (appears in nav)">Subsect</button>
-              <div className="toolbar-separator"></div>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[b]', '[/b]')}><strong>B</strong></button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[i]', '[/i]')}><em>I</em></button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[u]', '[/u]')}><u>U</u></button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[strike]', '[/strike]')}>S</button>
-              <div className="toolbar-separator"></div>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[url=]', '[/url]')}>Link</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[doclink=]', '[/doclink]')} title="Link to another wiki page by slug">DocLink</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[list]\n[*]', '\n[/list]')}>List</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[olist]\n[*]', '\n[/olist]')}>OList</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[code]', '[/code]')}>Code</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[quote]', '[/quote]')}>Quote</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[callout]', '[/callout]')}>Callout</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[spoiler]', '[/spoiler]')}>Spoiler</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[todo=]', '[/todo]')} title="TODO note with tooltip">TODO</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[hr]')}>HR</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('\n\n')} title="Insert blank line">⏎</button>
-              <button className="toolbar-btn" onClick={() => insertBBCode('[previewyoutube]', '[/previewyoutube]')} title="YouTube video (paste video ID)">YouTube</button>
-              <div className="toolbar-separator"></div>
-              <label className="toolbar-btn image-upload-btn">
-                Upload Image
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  style={{ display: 'none' }}
-                />
-              </label>
-            </div>
-            <textarea
-              ref={textareaRef}
-              className="editor-textarea"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-            />
+            {renderToolbar()}
+            {renderTextarea()}
           </div>
         ) : (
           <div className="preview-content">

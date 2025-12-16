@@ -9,7 +9,7 @@ import PageTalk from './PageTalk';
 import AdminDashboard from './AdminDashboard';
 import NewPageModal from './NewPageModal';
 
-function Wiki({ username, userRole, onLogout }) {
+function Wiki({ username, userId, userRole, onLogout }) {
   const [pages, setPages] = useState([]);
   const [showNewPageModal, setShowNewPageModal] = useState(false);
 
@@ -56,7 +56,7 @@ function Wiki({ username, userRole, onLogout }) {
             <Route path="/page/:slug" element={<PageViewWrapper onUpdate={handlePageUpdated} />} />
             <Route path="/page/:slug/talk" element={<PageTalkWrapper />} />
             <Route path="/page/:slug/history" element={<PageHistoryWrapper />} />
-            <Route path="/edit/:slug" element={<PageEditWrapper onUpdate={handlePageUpdated} />} />
+            <Route path="/edit/:slug" element={<PageEditWrapper onUpdate={handlePageUpdated} username={username} userId={userId} />} />
             {userRole === 'admin' && <Route path="/admin" element={<AdminDashboard />} />}
           </Routes>
         </div>
@@ -78,9 +78,9 @@ function PageViewWrapper({ onUpdate }) {
   return <PageView slug={slug} onUpdate={onUpdate} />;
 }
 
-function PageEditWrapper({ onUpdate }) {
+function PageEditWrapper({ onUpdate, username, userId }) {
   const { slug } = useParams();
-  return <PageEdit slug={slug} onUpdate={onUpdate} />;
+  return <PageEdit slug={slug} onUpdate={onUpdate} username={username} userId={userId} />;
 }
 
 function PageTalkWrapper() {

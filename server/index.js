@@ -1,4 +1,6 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
@@ -12,8 +14,10 @@ const { pool, initDB } = require('./db');
 const { parseBBCode } = require('./bbcode');
 const { generateDiff, parseDiff } = require('./diff');
 const { seedDatabase } = require('./seed');
+const initCollab = require('./collab');
 
 const app = express();
+const server = http.createServer(app);
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Middleware
@@ -42,6 +46,26 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Initialize Socket.io with CORS
+const io = new Server(server, {
+  cors: {
+    origin: function(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.some(allowed => origin?.includes(allowed))) {
+        callback(null, true);
+      } else if (origin && (origin.includes('.railway.app') || origin.includes('.up.railway.app'))) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true
+  }
+});
+
+// Initialize collaboration module
+initCollab(io, pool);
 
 // Serve static files from React app build folder
 app.use(express.static(path.join(__dirname, '../client/build')));
@@ -138,11 +162,13 @@ app.post('/api/logout', (req, res) => {
 // Check auth status
 app.get('/api/auth/check', authenticate, async (req, res) => {
   try {
-    const result = await pool.query('SELECT username, role FROM users WHERE id = $1', [req.userId]);
+    const result = await pool.query('SELECT id, username, role, cursor_color FROM users WHERE id = $1', [req.userId]);
     res.json({
       authenticated: true,
+      userId: result.rows[0].id,
       username: result.rows[0].username,
-      role: result.rows[0].role
+      role: result.rows[0].role,
+      cursorColor: result.rows[0].cursor_color
     });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -594,6 +620,67 @@ app.put('/api/users/:id/password', authenticate, requireAdmin, async (req, res) 
   }
 });
 
+// Update own cursor color
+app.put('/api/users/me/cursor-color', authenticate, async (req, res) => {
+  try {
+    const { color } = req.body;
+
+    if (!color) {
+      return res.status(400).json({ error: 'Color is required' });
+    }
+
+    // Validate hex color format
+    if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      return res.status(400).json({ error: 'Invalid color format. Use hex format like #FF5733' });
+    }
+
+    const result = await pool.query(
+      'UPDATE users SET cursor_color = $1 WHERE id = $2 RETURNING id, username, cursor_color',
+      [color, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ success: true, cursorColor: result.rows[0].cursor_color });
+  } catch (err) {
+    console.error('Error updating cursor color:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update any user's cursor color (admin only)
+app.put('/api/users/:id/cursor-color', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { color } = req.body;
+
+    if (!color) {
+      return res.status(400).json({ error: 'Color is required' });
+    }
+
+    // Validate hex color format
+    if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      return res.status(400).json({ error: 'Invalid color format. Use hex format like #FF5733' });
+    }
+
+    const result = await pool.query(
+      'UPDATE users SET cursor_color = $1 WHERE id = $2 RETURNING id, username, cursor_color',
+      [color, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    console.error('Error updating user cursor color:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Admin - get deleted pages
 app.get('/api/admin/deleted-pages', authenticate, requireAdmin, async (req, res) => {
   try {
@@ -778,9 +865,10 @@ initDB()
     // Automatically seed database if needed
     await seedDatabase();
 
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`\n🚀 Server running on port ${PORT}`);
       console.log(`📝 Wiki available at http://localhost:${PORT}`);
+      console.log(`🔌 WebSocket collaboration enabled`);
       console.log(`👤 Login with admin/admin\n`);
     });
   })
