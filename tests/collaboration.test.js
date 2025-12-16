@@ -1227,6 +1227,9 @@ runner.test('Socket: three users can collaborate simultaneously', async () => {
     password: 'testpass',
     role: 'user'
   });
+  if (user3Res.status !== 200) {
+    console.log('User 3 registration failed:', user3Res.status, user3Res.data);
+  }
   assertEqual(user3Res.status, 200, 'User 3 registration should succeed');
   const user3Id = user3Res.data.id;
 
@@ -1237,6 +1240,9 @@ runner.test('Socket: three users can collaborate simultaneously', async () => {
     username: user3name,
     password: 'testpass'
   });
+  if (login3Res.status !== 200) {
+    console.log('User 3 login failed:', login3Res.status, login3Res.data);
+  }
   assertEqual(login3Res.status, 200, 'User 3 login should succeed');
   assert(login3Res.headers['set-cookie'], 'User 3 should receive cookie');
   const user3Cookie = login3Res.headers['set-cookie'][0].split(';')[0];

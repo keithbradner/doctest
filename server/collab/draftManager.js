@@ -1,9 +1,12 @@
 const draftManager = {
   // Get existing draft or create one from the published page
   async getOrCreateDraft(pool, pageId) {
-    // Check if draft exists
+    // Check if draft exists (join with users to get last editor's username)
     const draftResult = await pool.query(
-      'SELECT * FROM page_drafts WHERE page_id = $1',
+      `SELECT d.*, u.username as last_modified_by_username
+       FROM page_drafts d
+       LEFT JOIN users u ON u.id = d.last_modified_by
+       WHERE d.page_id = $1`,
       [pageId]
     );
 
@@ -37,7 +40,10 @@ const draftManager = {
   // Get draft if exists, otherwise return null
   async getDraft(pool, pageId) {
     const result = await pool.query(
-      'SELECT * FROM page_drafts WHERE page_id = $1',
+      `SELECT d.*, u.username as last_modified_by_username
+       FROM page_drafts d
+       LEFT JOIN users u ON u.id = d.last_modified_by
+       WHERE d.page_id = $1`,
       [pageId]
     );
     return result.rows.length > 0 ? result.rows[0] : null;

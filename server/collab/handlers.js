@@ -39,7 +39,12 @@ function createHandlers(pool, collab) {
       // Send initial state to the joining user
       socket.emit('joined', {
         pageId,
-        draft: draft ? { content: draft.content, title: draft.title, lastModifiedAt: draft.last_modified_at } : null,
+        draft: draft ? {
+          content: draft.content,
+          title: draft.title,
+          lastModifiedAt: draft.last_modified_at,
+          lastModifiedBy: draft.last_modified_by_username
+        } : null,
         presence,
         cursors,
         hasDraft
@@ -102,7 +107,8 @@ function createHandlers(pool, collab) {
 
       // Send save confirmation to sender
       socket.emit('draft-saved', {
-        savedAt: new Date().toISOString()
+        savedAt: new Date().toISOString(),
+        savedBy: socket.user.username
       });
     },
 

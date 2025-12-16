@@ -31,7 +31,8 @@
       "Bash(npm run server:*)",
       "Bash(npm run test:collab:*)",
       "Bash(taskkill:*)",
-      "Bash(netstat:*)"
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
     ]
   }
 }

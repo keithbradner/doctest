@@ -4,6 +4,7 @@ function CollabControls({
   hasDraft,
   isSaving,
   lastSaved,
+  lastEditedBy,
   onPublish,
   onRevert,
   isConnected,
@@ -30,7 +31,7 @@ function CollabControls({
 
         {hasDraft && !error && (
           <span className="draft-indicator">
-            Draft (unpublished)
+            Draft{lastEditedBy ? ` by ${lastEditedBy}` : ''} (unpublished)
           </span>
         )}
 

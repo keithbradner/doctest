@@ -47,6 +47,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
   const [hasDraft, setHasDraft] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
+  const [lastEditedBy, setLastEditedBy] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const [editRanges, setEditRanges] = useState([]); // Track recent edits for highlighting
@@ -55,6 +56,12 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
   const pendingChangeRef = useRef(null);
   const localChangeRef = useRef(false); // Track if change is local
   const contentRef = useRef(initialContent); // Track content for cursor transformation
+  const presenceRef = useRef([]); // Ref to access presence without triggering useEffect
+
+  // Keep presenceRef in sync with presence state
+  useEffect(() => {
+    presenceRef.current = presence;
+  }, [presence]);
 
   // Update content when initial values change (page load)
   useEffect(() => {
@@ -142,6 +149,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
         setContent(data.draft.content);
         setTitle(data.draft.title);
         setLastSaved(data.draft.lastModifiedAt);
+        setLastEditedBy(data.draft.lastModifiedBy || null);
       }
       setPresence(data.presence || []);
       setCursors(data.cursors || {});
@@ -188,8 +196,8 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
       const { editStart, lengthDiff } = findEditDelta(oldContent, data.content);
       if (lengthDiff > 0) {
         // Insertion - highlight the new text
-        // Get user's cursor color from presence
-        const userPresence = presence.find(p => p.user_id === data.userId);
+        // Get user's cursor color from presence (use ref to avoid stale closure)
+        const userPresence = presenceRef.current.find(p => p.user_id === data.userId);
         const color = userPresence?.cursor_color
           ? `${userPresence.cursor_color}40` // Add alpha for softer highlight
           : 'rgba(255, 230, 0, 0.25)';
@@ -201,6 +209,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
       localChangeRef.current = false;
       setContent(data.content);
       setTitle(data.title);
+      setLastEditedBy(data.username);
       setHasDraft(true);
     };
 
@@ -219,6 +228,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
     const handleDraftSaved = (data) => {
       setIsSaving(false);
       setLastSaved(data.savedAt);
+      setLastEditedBy(data.savedBy);
       setHasDraft(true);
     };
 
@@ -226,6 +236,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
       console.log('Published by:', data.publishedBy);
       setHasDraft(false);
       setLastSaved(data.publishedAt);
+      setLastEditedBy(null);
     };
 
     const handleReverted = (data) => {
@@ -235,6 +246,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
       setContent(data.content);
       setTitle(data.title);
       setHasDraft(false);
+      setLastEditedBy(null);
     };
 
     const handleError = (data) => {
@@ -284,7 +296,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
       socket.off('reverted', handleReverted);
       socket.off('error', handleError);
     };
-  }, [pageId, transformCursors, addEditRange, presence]);
+  }, [pageId, transformCursors, addEditRange]);
 
   // Send content changes (debounced)
   const handleLocalChange = useCallback((newContent, newTitle) => {
@@ -384,6 +396,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
     hasDraft,
     isSaving,
     lastSaved,
+    lastEditedBy,
     isConnected,
     error,
     handleLocalChange,

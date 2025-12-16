@@ -29,6 +29,7 @@ function PageEdit({ slug, onUpdate, username, userId }) {
     hasDraft,
     isSaving,
     lastSaved,
+    lastEditedBy,
     isConnected,
     error: collabError,
     handleLocalChange,
@@ -492,6 +493,7 @@ function PageEdit({ slug, onUpdate, username, userId }) {
         hasDraft={hasDraft}
         isSaving={isSaving}
         lastSaved={lastSaved}
+        lastEditedBy={lastEditedBy}
         onPublish={handlePublish}
         onRevert={handleRevert}
         isConnected={isConnected}
