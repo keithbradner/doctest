@@ -33,7 +33,8 @@
       "Bash(taskkill:*)",
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "Bash(timeout /t 3)"
+      "Bash(timeout /t 3)",
+      "Bash(curl:*)"
     ]
   }
 }

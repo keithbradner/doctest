@@ -58,6 +58,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
   const contentRef = useRef(initialContent); // Track content for cursor transformation
   const presenceRef = useRef([]); // Ref to access presence without triggering useEffect
   const joinedPageRef = useRef(null); // Track which page we've joined to avoid duplicate joins
+  const handlersRef = useRef(null); // Store handlers so we can remove the exact ones we added
 
   // Keep presenceRef in sync with presence state
   useEffect(() => {
@@ -128,19 +129,22 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
     const socket = connectSocket();
     socketRef.current = socket;
 
-    // Remove any existing listeners to prevent duplicates
-    socket.off('connect');
-    socket.off('disconnect');
-    socket.off('connect_error');
-    socket.off('joined');
-    socket.off('user-joined');
-    socket.off('user-left');
-    socket.off('content-updated');
-    socket.off('cursor-updated');
-    socket.off('draft-saved');
-    socket.off('published');
-    socket.off('reverted');
-    socket.off('error');
+    // Clean up previous handlers if they exist (for page changes)
+    if (handlersRef.current) {
+      const h = handlersRef.current;
+      socket.off('connect', h.handleConnect);
+      socket.off('disconnect', h.handleDisconnect);
+      socket.off('connect_error', h.handleConnectError);
+      socket.off('joined', h.handleJoined);
+      socket.off('user-joined', h.handleUserJoined);
+      socket.off('user-left', h.handleUserLeft);
+      socket.off('content-updated', h.handleContentUpdated);
+      socket.off('cursor-updated', h.handleCursorUpdated);
+      socket.off('draft-saved', h.handleDraftSaved);
+      socket.off('published', h.handlePublished);
+      socket.off('reverted', h.handleReverted);
+      socket.off('error', h.handleError);
+    }
 
     // Connection handlers
     const handleConnect = () => {
@@ -273,6 +277,22 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
       setError(data.message);
     };
 
+    // Store handlers in ref so we can remove exactly these handlers later
+    handlersRef.current = {
+      handleConnect,
+      handleDisconnect,
+      handleConnectError,
+      handleJoined,
+      handleUserJoined,
+      handleUserLeft,
+      handleContentUpdated,
+      handleCursorUpdated,
+      handleDraftSaved,
+      handlePublished,
+      handleReverted,
+      handleError
+    };
+
     // Register event listeners
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
@@ -307,19 +327,23 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
         socket.emit('leave-page', { pageId });
         joinedPageRef.current = null;
       }
-      // Remove all listeners
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('connect_error');
-      socket.off('joined');
-      socket.off('user-joined');
-      socket.off('user-left');
-      socket.off('content-updated');
-      socket.off('cursor-updated');
-      socket.off('draft-saved');
-      socket.off('published');
-      socket.off('reverted');
-      socket.off('error');
+      // Remove only our specific handlers (not all handlers for these events)
+      if (handlersRef.current) {
+        const h = handlersRef.current;
+        socket.off('connect', h.handleConnect);
+        socket.off('disconnect', h.handleDisconnect);
+        socket.off('connect_error', h.handleConnectError);
+        socket.off('joined', h.handleJoined);
+        socket.off('user-joined', h.handleUserJoined);
+        socket.off('user-left', h.handleUserLeft);
+        socket.off('content-updated', h.handleContentUpdated);
+        socket.off('cursor-updated', h.handleCursorUpdated);
+        socket.off('draft-saved', h.handleDraftSaved);
+        socket.off('published', h.handlePublished);
+        socket.off('reverted', h.handleReverted);
+        socket.off('error', h.handleError);
+        handlersRef.current = null;
+      }
     };
   }, [pageId, transformCursors, addEditRange]);
 

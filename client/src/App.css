@@ -1567,6 +1567,32 @@ td {
   background: #808080;
 }
 
+/* Editing Indicator (shown on page view) */
+.editing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  background: rgba(255, 167, 38, 0.1);
+  border: 1px solid rgba(255, 167, 38, 0.3);
+  border-radius: 3px;
+  margin-bottom: 15px;
+  font-size: 13px;
+  color: #FFA726;
+}
+
+.editing-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #FFA726;
+  animation: pulse 1.5s infinite;
+}
+
+.editing-indicator-text {
+  color: #e5e5e5;
+}
+
 /* Collaboration Controls */
 .collab-controls {
   display: flex;

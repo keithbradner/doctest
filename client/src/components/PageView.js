@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useViewingPresence } from '../collab/useViewingPresence';
+import EditingIndicator from '../collab/EditingIndicator';
 
 function PageView({ slug, onUpdate }) {
   const [page, setPage] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Track who's editing this page
+  const { editors } = useViewingPresence(page?.id);
 
   useEffect(() => {
     const loadPage = async () => {
@@ -93,6 +98,8 @@ function PageView({ slug, onUpdate }) {
           </button>
         </div>
       </div>
+
+      <EditingIndicator editors={editors} />
 
       <div
         className="page-content"
