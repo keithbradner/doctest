@@ -12,7 +12,10 @@
       "Bash(npm run test:deletion:*)",
       "Bash(npm install:*)",
       "Bash(npm uninstall:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(cat:*)",
+      "Bash(npm run build:client:*)",
+      "Bash(ESLINT_NO_DEV_ERRORS=true npx eslint:*)"
     ]
   }
 }

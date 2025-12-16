@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import JSZip from 'jszip';
 
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -156,6 +157,34 @@ function AdminDashboard() {
     }
   };
 
+  const handleExportAllPages = async () => {
+    try {
+      const response = await axios.get('/api/pages');
+      const pages = response.data;
+
+      const zip = new JSZip();
+
+      pages.forEach(page => {
+        const filename = `${page.slug}.txt`;
+        zip.file(filename, page.content);
+      });
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `wiki-export-${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exporting pages:', err);
+      alert('Failed to export pages');
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
   };
@@ -204,6 +233,12 @@ function AdminDashboard() {
           onClick={() => setActiveTab('account')}
         >
           Account
+        </button>
+        <button
+          className={`admin-tab ${activeTab === 'export' ? 'active' : ''}`}
+          onClick={() => setActiveTab('export')}
+        >
+          Export
         </button>
       </div>
 
@@ -531,6 +566,18 @@ function AdminDashboard() {
               </div>
               <button type="submit" className="save-btn">Change Password</button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'export' && (
+        <div>
+          <div className="admin-section">
+            <h2>Export All Pages</h2>
+            <p>Download all wiki pages as a zip file. Each page will be saved as a .txt file containing the raw BBCode content.</p>
+            <button className="save-btn" onClick={handleExportAllPages}>
+              Download All Pages (.zip)
+            </button>
           </div>
         </div>
       )}

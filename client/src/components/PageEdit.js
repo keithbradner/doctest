@@ -7,6 +7,8 @@ function PageEdit({ slug, onUpdate }) {
   const [page, setPage] = useState(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [parentId, setParentId] = useState('');
+  const [allPages, setAllPages] = useState([]);
   const [activeTab, setActiveTab] = useState('edit');
   const [splitMode, setSplitMode] = useState(false);
   const [preview, setPreview] = useState('');
@@ -15,13 +17,18 @@ function PageEdit({ slug, onUpdate }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loadPage = async () => {
+    const loadData = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`/api/pages/${slug}`);
-        setPage(response.data);
-        setTitle(response.data.title);
-        setContent(response.data.content);
+        const [pageResponse, pagesResponse] = await Promise.all([
+          axios.get(`/api/pages/${slug}`),
+          axios.get('/api/pages')
+        ]);
+        setPage(pageResponse.data);
+        setTitle(pageResponse.data.title);
+        setContent(pageResponse.data.content);
+        setParentId(pageResponse.data.parent_id || '');
+        setAllPages(pagesResponse.data);
       } catch (err) {
         console.error('Error loading page:', err);
       } finally {
@@ -29,7 +36,7 @@ function PageEdit({ slug, onUpdate }) {
       }
     };
 
-    loadPage();
+    loadData();
   }, [slug]);
 
   useEffect(() => {
@@ -88,7 +95,7 @@ function PageEdit({ slug, onUpdate }) {
       await axios.put(`/api/pages/${slug}`, {
         title,
         content,
-        parent_id: page.parent_id,
+        parent_id: parentId || null,
         display_order: page.display_order,
         is_expanded: page.is_expanded
       });
@@ -116,8 +123,46 @@ function PageEdit({ slug, onUpdate }) {
     }
   };
 
-  const handlePaste = (e) => {
+  const handlePaste = async (e) => {
     const clipboardData = e.clipboardData;
+
+    // Check for pasted images first
+    const items = clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+          const textarea = textareaRef.current;
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+
+          const response = await axios.post('/api/images', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+
+          const imgTag = `[img]${response.data.url}[/img]`;
+          const newContent = content.substring(0, start) + imgTag + content.substring(end);
+          setContent(newContent);
+
+          setTimeout(() => {
+            textarea.selectionStart = start + imgTag.length;
+            textarea.selectionEnd = start + imgTag.length;
+            textarea.focus();
+          }, 0);
+        } catch (err) {
+          console.error('Error uploading image:', err);
+          alert('Failed to upload image');
+        }
+        return;
+      }
+    }
+
     const html = clipboardData.getData('text/html');
 
     if (html) {
@@ -284,6 +329,23 @@ function PageEdit({ slug, onUpdate }) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
+      </div>
+
+      <div className="form-group">
+        <label>Parent Page</label>
+        <select
+          value={parentId}
+          onChange={(e) => setParentId(e.target.value)}
+        >
+          <option value="">None (Top Level)</option>
+          {allPages
+            .filter(p => p.id !== page.id)
+            .map(p => (
+              <option key={p.id} value={p.id}>
+                {p.title}
+              </option>
+            ))}
+        </select>
       </div>
 
       <div className="editor-controls">
