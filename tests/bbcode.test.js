@@ -267,22 +267,22 @@ const tests = [
   {
     name: 'Doclink - basic usage',
     input: '[doclink=getting-started]Getting Started Guide[/doclink]',
-    expected: /<a href="\/wiki\/getting-started" class="doclink">Getting Started Guide<\/a>/
+    expected: /<a href="\/page\/getting-started" class="doclink">Getting Started Guide<\/a>/
   },
   {
     name: 'Doclink - with underscores in slug',
     input: '[doclink=api_reference]API Reference[/doclink]',
-    expected: /<a href="\/wiki\/api_reference" class="doclink">API Reference<\/a>/
+    expected: /<a href="\/page\/api_reference" class="doclink">API Reference<\/a>/
   },
   {
     name: 'Doclink - multiple links',
     input: 'See [doclink=intro]Introduction[/doclink] and [doclink=setup]Setup[/doclink]',
-    expected: /<a href="\/wiki\/intro" class="doclink">Introduction<\/a>.*<a href="\/wiki\/setup" class="doclink">Setup<\/a>/
+    expected: /<a href="\/page\/intro" class="doclink">Introduction<\/a>.*<a href="\/page\/setup" class="doclink">Setup<\/a>/
   },
   {
     name: 'Doclink - HTML in link text should be escaped',
     input: '[doclink=test]<b>Bold</b>[/doclink]',
-    expected: /<a href="\/wiki\/test" class="doclink">&lt;b&gt;Bold&lt;\/b&gt;<\/a>/
+    expected: /<a href="\/page\/test" class="doclink">&lt;b&gt;Bold&lt;\/b&gt;<\/a>/
   },
   {
     name: 'Doclink - inside code block should NOT be processed',
@@ -297,12 +297,12 @@ const tests = [
   {
     name: 'Doclink - with formatting inside',
     input: '[doclink=guide][b]Important[/b] Guide[/doclink]',
-    expected: /<a href="\/wiki\/guide" class="doclink"><strong>Important<\/strong> Guide<\/a>/
+    expected: /<a href="\/page\/guide" class="doclink"><strong>Important<\/strong> Guide<\/a>/
   },
   {
     name: 'Section with doclink inside description',
     input: '[section=References]See [doclink=api]API Docs[/doclink] for more info.[/section]',
-    expected: /<h2 class="bb_section"><a name="References"><\/a>References<\/h2><p class="section-desc">See <a href="\/wiki\/api" class="doclink">API Docs<\/a> for more info\.<\/p>/
+    expected: /<h2 class="bb_section"><a name="References"><\/a>References<\/h2><p class="section-desc">See <a href="\/page\/api" class="doclink">API Docs<\/a> for more info\.<\/p>/
   },
   {
     name: 'Section - multiline description',

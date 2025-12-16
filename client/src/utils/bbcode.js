@@ -88,7 +88,7 @@ const parseBBCode = (text) => {
   html = html.replace(/\[url\](.*?)\[\/url\]/gi, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
 
   // Doc links - internal wiki links [doclink=slug]Text[/doclink]
-  html = html.replace(/\[doclink=(.*?)\](.*?)\[\/doclink\]/gi, '<a href="/wiki/$1" class="doclink">$2</a>');
+  html = html.replace(/\[doclink=(.*?)\](.*?)\[\/doclink\]/gi, '<a href="/page/$1" class="doclink">$2</a>');
 
   // Images
   html = html.replace(/\[img\](.*?)\[\/img\]/gi, '<img src="$1" alt="Image" />');
