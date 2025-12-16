@@ -57,6 +57,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
   const localChangeRef = useRef(false); // Track if change is local
   const contentRef = useRef(initialContent); // Track content for cursor transformation
   const presenceRef = useRef([]); // Ref to access presence without triggering useEffect
+  const joinedPageRef = useRef(null); // Track which page we've joined to avoid duplicate joins
 
   // Keep presenceRef in sync with presence state
   useEffect(() => {
@@ -121,8 +122,25 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
   useEffect(() => {
     if (!pageId) return;
 
+    // Skip if already joined this page (prevents StrictMode double-join)
+    if (joinedPageRef.current === pageId) return;
+
     const socket = connectSocket();
     socketRef.current = socket;
+
+    // Remove any existing listeners to prevent duplicates
+    socket.off('connect');
+    socket.off('disconnect');
+    socket.off('connect_error');
+    socket.off('joined');
+    socket.off('user-joined');
+    socket.off('user-left');
+    socket.off('content-updated');
+    socket.off('cursor-updated');
+    socket.off('draft-saved');
+    socket.off('published');
+    socket.off('reverted');
+    socket.off('error');
 
     // Connection handlers
     const handleConnect = () => {
@@ -130,6 +148,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
       setError(null);
       // Join the page room
       socket.emit('join-page', { pageId, mode: 'editing' });
+      joinedPageRef.current = pageId;
     };
 
     const handleDisconnect = () => {
@@ -274,6 +293,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
     } else {
       // Already connected, just join the room
       socket.emit('join-page', { pageId, mode: 'editing' });
+      joinedPageRef.current = pageId;
       setIsConnected(true);
     }
 
@@ -282,19 +302,24 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
       if (pendingChangeRef.current) {
         clearTimeout(pendingChangeRef.current);
       }
-      socket.emit('leave-page', { pageId });
-      socket.off('connect', handleConnect);
-      socket.off('disconnect', handleDisconnect);
-      socket.off('connect_error', handleConnectError);
-      socket.off('joined', handleJoined);
-      socket.off('user-joined', handleUserJoined);
-      socket.off('user-left', handleUserLeft);
-      socket.off('content-updated', handleContentUpdated);
-      socket.off('cursor-updated', handleCursorUpdated);
-      socket.off('draft-saved', handleDraftSaved);
-      socket.off('published', handlePublished);
-      socket.off('reverted', handleReverted);
-      socket.off('error', handleError);
+      // Only emit leave-page if we actually joined this page
+      if (joinedPageRef.current === pageId) {
+        socket.emit('leave-page', { pageId });
+        joinedPageRef.current = null;
+      }
+      // Remove all listeners
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('connect_error');
+      socket.off('joined');
+      socket.off('user-joined');
+      socket.off('user-left');
+      socket.off('content-updated');
+      socket.off('cursor-updated');
+      socket.off('draft-saved');
+      socket.off('published');
+      socket.off('reverted');
+      socket.off('error');
     };
   }, [pageId, transformCursors, addEditRange]);
 
