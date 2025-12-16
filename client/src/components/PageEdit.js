@@ -123,10 +123,40 @@ function PageEdit({ slug, onUpdate }) {
     }
   };
 
+  const uploadImageFromUrl = async (imgUrl) => {
+    try {
+      let blob;
+
+      if (imgUrl.startsWith('data:')) {
+        // Handle data URLs (base64 encoded images)
+        const response = await fetch(imgUrl);
+        blob = await response.blob();
+      } else {
+        // For external URLs, try to fetch (may fail due to CORS)
+        const response = await fetch(imgUrl, { mode: 'cors' });
+        if (!response.ok) return null;
+        blob = await response.blob();
+      }
+
+      const formData = new FormData();
+      formData.append('image', blob, 'pasted-image.png');
+
+      const uploadResponse = await axios.post('/api/images', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      return uploadResponse.data.url;
+    } catch (err) {
+      // CORS or network error - silently skip this image
+      console.error('Error fetching/uploading image:', err);
+      return null;
+    }
+  };
+
   const handlePaste = async (e) => {
     const clipboardData = e.clipboardData;
 
-    // Check for pasted images first
+    // Check for pasted images first (screenshots, direct image pastes)
     const items = clipboardData.items;
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.startsWith('image/')) {
@@ -164,6 +194,45 @@ function PageEdit({ slug, onUpdate }) {
     }
 
     const html = clipboardData.getData('text/html');
+
+    // Check if HTML contains images (e.g., from Google Docs)
+    if (html) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const images = doc.querySelectorAll('img[src]');
+
+      if (images.length > 0) {
+        e.preventDefault();
+        const textarea = textareaRef.current;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        let insertedText = '';
+
+        for (const img of images) {
+          const src = img.getAttribute('src');
+          if (src) {
+            // Try to upload the image
+            const uploadedUrl = await uploadImageFromUrl(src);
+            if (uploadedUrl) {
+              insertedText += `[img]${uploadedUrl}[/img]\n`;
+            }
+          }
+        }
+
+        if (insertedText) {
+          const newContent = content.substring(0, start) + insertedText.trim() + content.substring(end);
+          setContent(newContent);
+
+          setTimeout(() => {
+            textarea.selectionStart = start + insertedText.trim().length;
+            textarea.selectionEnd = start + insertedText.trim().length;
+            textarea.focus();
+          }, 0);
+          return;
+        }
+      }
+    }
 
     if (html) {
       // Parse HTML and convert to BBCode
