@@ -121,39 +121,96 @@ function PageEdit({ slug, onUpdate }) {
     const html = clipboardData.getData('text/html');
 
     if (html) {
-      // Parse HTML and convert links to BBCode
+      // Parse HTML and convert to BBCode
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
 
-      // Convert <a> tags to [url] BBCode
-      const convertNode = (node) => {
+      // Check if there's any meaningful formatting to convert
+      const hasLinks = doc.querySelectorAll('a[href]').length > 0;
+      const hasBold = doc.querySelectorAll('b, strong').length > 0;
+      const hasItalic = doc.querySelectorAll('i, em').length > 0;
+      const hasUnderline = doc.querySelectorAll('u').length > 0;
+      const hasLists = doc.querySelectorAll('ul, ol').length > 0;
+
+      if (!hasLinks && !hasBold && !hasItalic && !hasUnderline && !hasLists) {
+        // No formatting to convert, let default paste handle it
+        return;
+      }
+
+      // Check if body has a single wrapper element that contains all content
+      // This detects when apps wrap everything in a formatting tag
+      const isWrapperElement = (node, tagNames) => {
+        if (node.nodeType !== Node.ELEMENT_NODE) return false;
+        const tagName = node.tagName.toLowerCase();
+        if (!tagNames.includes(tagName)) return false;
+        // Check if this is the only meaningful child of its parent
+        const siblings = Array.from(node.parentNode.childNodes).filter(n =>
+          n.nodeType === Node.ELEMENT_NODE || (n.nodeType === Node.TEXT_NODE && n.textContent.trim())
+        );
+        return siblings.length === 1;
+      };
+
+      // Convert HTML nodes to BBCode
+      const convertNode = (node, isTopLevel = false) => {
         if (node.nodeType === Node.TEXT_NODE) {
           return node.textContent;
         }
 
         if (node.nodeType === Node.ELEMENT_NODE) {
           const tagName = node.tagName.toLowerCase();
-          let childContent = Array.from(node.childNodes).map(convertNode).join('');
+          let childContent = Array.from(node.childNodes).map(n => convertNode(n, false)).join('');
 
+          // Links
           if (tagName === 'a' && node.href) {
             const href = node.getAttribute('href');
-            // If link text is the same as URL, use simple [url] format
             if (childContent.trim() === href) {
               return `[url]${href}[/url]`;
             }
             return `[url=${href}]${childContent}[/url]`;
           }
 
-          // Handle other common formatting
+          // Bold - skip if it's a top-level wrapper
           if (tagName === 'b' || tagName === 'strong') {
+            if (isTopLevel && isWrapperElement(node, ['b', 'strong'])) {
+              return childContent;
+            }
             return `[b]${childContent}[/b]`;
           }
+
+          // Italic - skip if it's a top-level wrapper
           if (tagName === 'i' || tagName === 'em') {
+            if (isTopLevel && isWrapperElement(node, ['i', 'em'])) {
+              return childContent;
+            }
             return `[i]${childContent}[/i]`;
           }
+
+          // Underline - skip if it's a top-level wrapper
           if (tagName === 'u') {
+            if (isTopLevel && isWrapperElement(node, ['u'])) {
+              return childContent;
+            }
             return `[u]${childContent}[/u]`;
           }
+
+          // Lists
+          if (tagName === 'ul') {
+            const items = Array.from(node.querySelectorAll(':scope > li'))
+              .map(li => `[*]${convertNode(li, false).trim()}`)
+              .join('\n');
+            return `[list]\n${items}\n[/list]`;
+          }
+          if (tagName === 'ol') {
+            const items = Array.from(node.querySelectorAll(':scope > li'))
+              .map(li => `[*]${convertNode(li, false).trim()}`)
+              .join('\n');
+            return `[olist]\n${items}\n[/olist]`;
+          }
+          if (tagName === 'li') {
+            return childContent;
+          }
+
+          // Line breaks and blocks
           if (tagName === 'br') {
             return '\n';
           }
@@ -167,10 +224,15 @@ function PageEdit({ slug, onUpdate }) {
         return '';
       };
 
-      const convertedText = Array.from(doc.body.childNodes).map(convertNode).join('').trim();
+      const convertedText = Array.from(doc.body.childNodes)
+        .map(n => convertNode(n, true))
+        .join('')
+        .trim();
 
-      // Only use converted text if it contains BBCode (meaning there were links/formatting)
-      if (convertedText.includes('[url') || convertedText.includes('[b]') || convertedText.includes('[i]') || convertedText.includes('[u]')) {
+      // Only use converted text if it actually contains BBCode
+      if (convertedText.includes('[url') || convertedText.includes('[b]') ||
+          convertedText.includes('[i]') || convertedText.includes('[u]') ||
+          convertedText.includes('[list]') || convertedText.includes('[olist]')) {
         e.preventDefault();
 
         const textarea = textareaRef.current;
@@ -180,7 +242,6 @@ function PageEdit({ slug, onUpdate }) {
         const newContent = content.substring(0, start) + convertedText + content.substring(end);
         setContent(newContent);
 
-        // Set cursor position after pasted text
         setTimeout(() => {
           textarea.selectionStart = start + convertedText.length;
           textarea.selectionEnd = start + convertedText.length;

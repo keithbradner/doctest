@@ -9,7 +9,10 @@
       "Bash(tee:*)",
       "Bash(npm run test:bbcode:*)",
       "Bash(npm run test:all:*)",
-      "Bash(npm run test:deletion:*)"
+      "Bash(npm run test:deletion:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }
