@@ -745,6 +745,9 @@ td {
 /* Editor */
 .editor-container {
   margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
 }
 
 .editor-toolbar {
@@ -756,6 +759,7 @@ td {
   gap: 5px;
   border: 1px solid #3d4450;
   border-bottom: none;
+  flex-shrink: 0;
 }
 
 .toolbar-btn {
@@ -1726,7 +1730,7 @@ td {
 .editor-textarea-container .editor-textarea,
 .editor-textarea-container .split-editor-textarea {
   flex: 1;
-  min-height: 0;
+  min-height: 400px;
 }
 
 .cursor-overlay {

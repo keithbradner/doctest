@@ -13,7 +13,7 @@ function PageEdit({ slug, onUpdate, username, userId }) {
   const [parentId, setParentId] = useState('');
   const [allPages, setAllPages] = useState([]);
   const [activeTab, setActiveTab] = useState('edit');
-  const [splitMode, setSplitMode] = useState(false);
+  const [splitMode, setSplitMode] = useState(true);
   const [preview, setPreview] = useState('');
   const [loading, setLoading] = useState(true);
   const textareaRef = useRef(null);
