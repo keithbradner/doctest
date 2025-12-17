@@ -64,24 +64,22 @@ function CursorOverlay({ textareaRef, cursors, content, currentUserId }) {
       const markerRect = marker.getBoundingClientRect();
       const mirrorRect = mirror.getBoundingClientRect();
 
-      // Position relative to mirror (which should match textarea content area)
+      // Position relative to mirror (which already has matching padding)
       let x = markerRect.left - mirrorRect.left - scrollLeft;
       let y = markerRect.top - mirrorRect.top - scrollTop;
-
-      // Adjust for textarea padding (already accounted for in mirror)
-      const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
-      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
 
       // Get line height for cursor height
       const lineHeight = parseFloat(computedStyle.lineHeight) || parseFloat(computedStyle.fontSize) * 1.2;
 
+      // The mirror already has padding applied, so no need to add it again
+      // Just use x and y directly
       positions[userId] = {
-        x: x + paddingLeft,
-        y: y + paddingTop,
+        x: x,
+        y: y,
         height: lineHeight,
         color: cursorData.color,
         username: cursorData.username,
-        visible: y >= 0 && y < textarea.clientHeight // Hide if scrolled out of view
+        visible: y >= -lineHeight && y < textarea.clientHeight // Hide if scrolled out of view
       };
     });
 
@@ -140,7 +138,6 @@ function CursorOverlay({ textareaRef, cursors, content, currentUserId }) {
               top: `${pos.y}px`,
               height: `${pos.height}px`,
               borderLeft: `2px solid ${pos.color}`,
-              pointerEvents: 'none',
               zIndex: 10,
               transition: 'left 0.1s ease-out, top 0.1s ease-out'
             }}
@@ -150,13 +147,9 @@ function CursorOverlay({ textareaRef, cursors, content, currentUserId }) {
               style={{
                 backgroundColor: pos.color,
                 color: 'white',
-                fontSize: '10px',
-                padding: '1px 4px',
-                borderRadius: '2px',
                 position: 'absolute',
                 top: '-16px',
                 left: '-1px',
-                whiteSpace: 'nowrap',
                 fontFamily: 'sans-serif',
                 fontWeight: '500',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
