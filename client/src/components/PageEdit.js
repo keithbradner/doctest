@@ -531,14 +531,12 @@ function PageEdit({ slug, onUpdate, username, userId }) {
           <button
             className={`editor-tab ${!splitMode && activeTab === 'edit' ? 'active' : ''}`}
             onClick={() => { setSplitMode(false); setActiveTab('edit'); }}
-            disabled={splitMode}
           >
             Edit
           </button>
           <button
             className={`editor-tab ${!splitMode && activeTab === 'preview' ? 'active' : ''}`}
             onClick={() => { setSplitMode(false); setActiveTab('preview'); }}
-            disabled={splitMode}
           >
             Preview
           </button>

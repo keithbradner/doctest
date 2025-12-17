@@ -14,7 +14,8 @@
     "test:htmlbbcode": "node tests/htmlToBBCode.test.js",
     "test:deletion": "node tests/deletion.test.js",
     "test:collab": "node tests/collaboration.test.js",
-    "test:all": "npm run test:bbcode && npm run test:htmlbbcode && npm run test && npm run test:deletion && npm run test:collab",
+    "test:tabs": "node tests/editorTabs.test.js",
+    "test:all": "npm run test:bbcode && npm run test:htmlbbcode && npm run test:tabs && npm run test && npm run test:deletion && npm run test:collab",
     "start": "node server/index.js",
     "postinstall": "cd client && npm install",
     "heroku-postbuild": "npm run build"
