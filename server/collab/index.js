@@ -4,9 +4,18 @@ const { presenceManager } = require('./presenceManager');
 const { cursorManager } = require('./cursorManager');
 const { createHandlers } = require('./handlers');
 
+// Helper to broadcast admin events
+const broadcastAdminEvent = (collab, event) => {
+  collab.to('admin-live').emit('admin-event', event);
+};
+
 module.exports = (io, pool) => {
   const collab = io.of('/collab');
-  const handlers = createHandlers(pool, collab);
+
+  // Create admin event broadcaster
+  const adminBroadcast = (event) => broadcastAdminEvent(collab, event);
+
+  const handlers = createHandlers(pool, collab, adminBroadcast);
 
   // Authentication middleware for socket connections
   collab.use(async (socket, next) => {
@@ -56,6 +65,26 @@ module.exports = (io, pool) => {
 
     // Track which page this socket is on
     socket.currentPageId = null;
+
+    // Admin joins the live feed room
+    socket.on('join-admin-live', async () => {
+      if (socket.user.role !== 'admin') {
+        socket.emit('error', { message: 'Admin access required', code: 'FORBIDDEN' });
+        return;
+      }
+      socket.join('admin-live');
+      console.log(`Admin ${socket.user.username} joined admin-live feed`);
+
+      // Send current active sessions
+      const activeSessions = await presenceManager.getAllActiveSessions(pool);
+      socket.emit('admin-init', { activeSessions });
+    });
+
+    // Admin leaves the live feed room
+    socket.on('leave-admin-live', () => {
+      socket.leave('admin-live');
+      console.log(`Admin ${socket.user.username} left admin-live feed`);
+    });
 
     // Join a page for editing/viewing
     socket.on('join-page', async (data) => {

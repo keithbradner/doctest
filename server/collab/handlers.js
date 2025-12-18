@@ -3,7 +3,7 @@ const { presenceManager } = require('./presenceManager');
 const { cursorManager } = require('./cursorManager');
 const { generateDiff } = require('../diff');
 
-function createHandlers(pool, collab) {
+function createHandlers(pool, collab, adminBroadcast = () => {}) {
   return {
     // User joins a page for editing or viewing
     async handleJoinPage(socket, { pageId, mode = 'editing' }) {
@@ -58,6 +58,20 @@ function createHandlers(pool, collab) {
         mode
       });
 
+      // Broadcast to admin live feed
+      const pageInfo = await pool.query('SELECT title, slug FROM pages WHERE id = $1', [pageId]);
+      adminBroadcast({
+        type: 'user-joined-page',
+        timestamp: new Date().toISOString(),
+        userId: socket.userId,
+        username: socket.user.username,
+        cursorColor: socket.user.cursor_color,
+        pageId,
+        pageTitle: pageInfo.rows[0]?.title,
+        pageSlug: pageInfo.rows[0]?.slug,
+        mode
+      });
+
       console.log(`User ${socket.user.username} joined page ${pageId} in ${mode} mode`);
     },
 
@@ -68,12 +82,26 @@ function createHandlers(pool, collab) {
       const roomName = `page:${pageId}`;
       socket.leave(roomName);
 
+      // Get page info before leaving
+      const pageInfo = await pool.query('SELECT title, slug FROM pages WHERE id = $1', [pageId]);
+
       // Remove from editing session
       await presenceManager.leavePageSession(pool, pageId, socket.userId);
 
       // Notify others
       socket.to(roomName).emit('user-left', {
         userId: socket.userId
+      });
+
+      // Broadcast to admin live feed
+      adminBroadcast({
+        type: 'user-left-page',
+        timestamp: new Date().toISOString(),
+        userId: socket.userId,
+        username: socket.user.username,
+        pageId,
+        pageTitle: pageInfo.rows[0]?.title,
+        pageSlug: pageInfo.rows[0]?.slug
       });
 
       if (socket.currentPageId === pageId) {
@@ -106,9 +134,22 @@ function createHandlers(pool, collab) {
       });
 
       // Send save confirmation to sender
+      const savedAt = new Date().toISOString();
       socket.emit('draft-saved', {
-        savedAt: new Date().toISOString(),
+        savedAt,
         savedBy: socket.user.username
+      });
+
+      // Broadcast to admin live feed
+      const pageInfo = await pool.query('SELECT title, slug FROM pages WHERE id = $1', [pageId]);
+      adminBroadcast({
+        type: 'draft-saved',
+        timestamp: savedAt,
+        userId: socket.userId,
+        username: socket.user.username,
+        pageId,
+        pageTitle: pageInfo.rows[0]?.title,
+        pageSlug: pageInfo.rows[0]?.slug
       });
     },
 
@@ -133,7 +174,7 @@ function createHandlers(pool, collab) {
     },
 
     // Publish draft to the live page
-    async handlePublish(socket, { pageId }) {
+    async handlePublish(socket, { pageId, parentId }) {
       if (!pageId) {
         socket.emit('error', { message: 'pageId is required', code: 'INVALID_REQUEST' });
         return;
@@ -141,12 +182,8 @@ function createHandlers(pool, collab) {
 
       const roomName = `page:${pageId}`;
 
-      // Get the draft
+      // Get the draft (may be null if only parent changed)
       const draft = await draftManager.getDraft(pool, pageId);
-      if (!draft) {
-        socket.emit('error', { message: 'No draft to publish', code: 'NO_DRAFT' });
-        return;
-      }
 
       // Get current page content for history
       const pageResult = await pool.query(
@@ -161,32 +198,53 @@ function createHandlers(pool, collab) {
 
       const currentPage = pageResult.rows[0];
 
-      // Generate diff for history
-      const diff = generateDiff(currentPage.content, draft.content);
+      // Use draft content if available, otherwise keep current
+      const newContent = draft ? draft.content : currentPage.content;
+      const newTitle = draft ? draft.title : currentPage.title;
 
-      // Update the page
+      // Generate diff for history (only if content changed)
+      const diff = draft ? generateDiff(currentPage.content, newContent) : '';
+
+      // Update the page (including parent_id)
       await pool.query(
         `UPDATE pages
-         SET content = $1, title = $2, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3`,
-        [draft.content, draft.title, pageId]
+         SET content = $1, title = $2, parent_id = $3, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $4`,
+        [newContent, newTitle, parentId, pageId]
       );
 
-      // Record in history
-      await pool.query(
-        `INSERT INTO page_history (page_id, title, content, previous_content, diff, user_id)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [pageId, draft.title, draft.content, currentPage.content, diff, socket.userId]
-      );
+      // Record in history (only if there was actual content change)
+      if (draft) {
+        await pool.query(
+          `INSERT INTO page_history (page_id, title, content, previous_content, diff, user_id)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [pageId, newTitle, newContent, currentPage.content, diff, socket.userId]
+        );
+      }
 
-      // Delete the draft
-      await draftManager.deleteDraft(pool, pageId);
+      // Delete the draft if it exists
+      if (draft) {
+        await draftManager.deleteDraft(pool, pageId);
+      }
 
       // Notify all users in the room
+      const publishedAt = new Date().toISOString();
       collab.to(roomName).emit('published', {
         success: true,
-        publishedAt: new Date().toISOString(),
+        publishedAt,
         publishedBy: socket.user.username
+      });
+
+      // Broadcast to admin live feed
+      const pageInfoForAdmin = await pool.query('SELECT title, slug FROM pages WHERE id = $1', [pageId]);
+      adminBroadcast({
+        type: 'page-published',
+        timestamp: publishedAt,
+        userId: socket.userId,
+        username: socket.user.username,
+        pageId,
+        pageTitle: pageInfoForAdmin.rows[0]?.title,
+        pageSlug: pageInfoForAdmin.rows[0]?.slug
       });
 
       console.log(`User ${socket.user.username} published page ${pageId}`);
@@ -203,7 +261,7 @@ function createHandlers(pool, collab) {
 
       // Get the published page content
       const pageResult = await pool.query(
-        'SELECT content, title FROM pages WHERE id = $1 AND deleted_at IS NULL',
+        'SELECT content, title, parent_id, slug FROM pages WHERE id = $1 AND deleted_at IS NULL',
         [pageId]
       );
 
@@ -221,7 +279,19 @@ function createHandlers(pool, collab) {
       collab.to(roomName).emit('reverted', {
         content: page.content,
         title: page.title,
+        parentId: page.parent_id,
         revertedBy: socket.user.username
+      });
+
+      // Broadcast to admin live feed
+      adminBroadcast({
+        type: 'page-reverted',
+        timestamp: new Date().toISOString(),
+        userId: socket.userId,
+        username: socket.user.username,
+        pageId,
+        pageTitle: page.title,
+        pageSlug: page.slug
       });
 
       console.log(`User ${socket.user.username} reverted page ${pageId}`);
@@ -235,12 +305,26 @@ function createHandlers(pool, collab) {
       if (session) {
         const roomName = `page:${session.page_id}`;
 
+        // Get page info before removing session
+        const pageInfo = await pool.query('SELECT title, slug FROM pages WHERE id = $1', [session.page_id]);
+
         // Remove from editing session
         await presenceManager.leaveSession(pool, socket.id);
 
         // Notify others
         collab.to(roomName).emit('user-left', {
           userId: socket.userId
+        });
+
+        // Broadcast to admin live feed
+        adminBroadcast({
+          type: 'user-disconnected',
+          timestamp: new Date().toISOString(),
+          userId: socket.userId,
+          username: socket.user.username,
+          pageId: session.page_id,
+          pageTitle: pageInfo.rows[0]?.title,
+          pageSlug: pageInfo.rows[0]?.slug
         });
       }
     }

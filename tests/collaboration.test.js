@@ -27,6 +27,7 @@ const {
 const { registerManagerTests } = require('./collab/managers.test');
 const { registerSocketTests } = require('./collab/socket.test');
 const { registerTransformTests } = require('./collab/transform.test');
+const { registerAdminLiveTests } = require('./collab/adminLive.test');
 
 // ============================================================
 // TEST CONTEXT
@@ -145,6 +146,7 @@ runner.test('Setup: Create second test user', async () => {
 registerManagerTests(runner, context);
 registerSocketTests(runner, context);
 registerTransformTests(runner);
+registerAdminLiveTests(runner, context);
 
 // ============================================================
 // CLEANUP

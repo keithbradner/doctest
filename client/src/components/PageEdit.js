@@ -11,6 +11,7 @@ import CollabControls from '../collab/CollabControls';
 function PageEdit({ slug, onUpdate, username, userId }) {
   const [page, setPage] = useState(null);
   const [parentId, setParentId] = useState('');
+  const [originalParentId, setOriginalParentId] = useState('');
   const [allPages, setAllPages] = useState([]);
   const [activeTab, setActiveTab] = useState('edit');
   const [splitMode, setSplitMode] = useState(true);
@@ -48,6 +49,7 @@ function PageEdit({ slug, onUpdate, username, userId }) {
         ]);
         setPage(pageResponse.data);
         setParentId(pageResponse.data.parent_id || '');
+        setOriginalParentId(pageResponse.data.parent_id || '');
         setAllPages(pagesResponse.data);
       } catch (err) {
         console.error('Error loading page:', err);
@@ -121,9 +123,13 @@ function PageEdit({ slug, onUpdate, username, userId }) {
     }
   };
 
+  // Check if parent has changed
+  const parentIdChanged = parentId !== originalParentId;
+  const hasChanges = hasDraft || parentIdChanged;
+
   const handlePublish = async () => {
     try {
-      await publish();
+      await publish(parentId || null);
       onUpdate();
       navigate(slug === 'welcome' ? '/' : `/page/${slug}`);
     } catch (err) {
@@ -137,7 +143,11 @@ function PageEdit({ slug, onUpdate, username, userId }) {
       return;
     }
     try {
-      await revert();
+      const data = await revert();
+      // Reset parent to the published value
+      const revertedParentId = data.parentId || '';
+      setParentId(revertedParentId);
+      setOriginalParentId(revertedParentId);
     } catch (err) {
       console.error('Error reverting:', err);
       alert('Failed to revert: ' + err.message);
@@ -145,7 +155,7 @@ function PageEdit({ slug, onUpdate, username, userId }) {
   };
 
   const handleCancel = () => {
-    if (hasDraft && !window.confirm('You have unsaved changes. Are you sure you want to leave?')) {
+    if (hasChanges && !window.confirm('You have unsaved changes. Are you sure you want to leave?')) {
       return;
     }
     navigate(slug === 'welcome' ? '/' : `/page/${slug}`);
@@ -490,7 +500,7 @@ function PageEdit({ slug, onUpdate, username, userId }) {
 
       {/* Collaboration Controls - connection status, draft status, publish/revert */}
       <CollabControls
-        hasDraft={hasDraft}
+        hasDraft={hasChanges}
         isSaving={isSaving}
         lastSaved={lastSaved}
         lastEditedBy={lastEditedBy}

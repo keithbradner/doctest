@@ -385,7 +385,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
   }, [pageId]);
 
   // Publish draft to live page
-  const publish = useCallback(() => {
+  const publish = useCallback((parentId = null) => {
     return new Promise((resolve, reject) => {
       if (!socketRef.current) {
         reject(new Error('Not connected'));
@@ -406,7 +406,7 @@ export function useCollaboration(pageId, initialContent = '', initialTitle = '')
 
       socketRef.current.on('published', handlePublished);
       socketRef.current.on('error', handleError);
-      socketRef.current.emit('publish', { pageId });
+      socketRef.current.emit('publish', { pageId, parentId });
     });
   }, [pageId]);
 

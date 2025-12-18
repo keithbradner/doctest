@@ -89,6 +89,26 @@ const presenceManager = {
       [socketId]
     );
     return result.rows[0];
+  },
+
+  // Get all active sessions (for admin dashboard)
+  async getAllActiveSessions(pool) {
+    const result = await pool.query(
+      `SELECT
+        es.page_id,
+        es.mode,
+        es.last_activity,
+        u.id as user_id,
+        u.username,
+        u.cursor_color,
+        p.title as page_title,
+        p.slug as page_slug
+       FROM editing_sessions es
+       JOIN users u ON u.id = es.user_id
+       JOIN pages p ON p.id = es.page_id
+       ORDER BY es.last_activity DESC`
+    );
+    return result.rows;
   }
 };
 

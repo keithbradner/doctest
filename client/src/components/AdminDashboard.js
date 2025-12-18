@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import JSZip from 'jszip';
+import { connectSocket } from '../collab/socketClient';
 
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -14,6 +15,13 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [passwordChange, setPasswordChange] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [adminPasswordChange, setAdminPasswordChange] = useState({});
+
+  // Live feed state
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [liveEvents, setLiveEvents] = useState([]);
+  const [isLiveConnected, setIsLiveConnected] = useState(false);
+  const socketRef = useRef(null);
+  const maxEvents = 100; // Keep last 100 events
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -56,6 +64,89 @@ function AdminDashboard() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Live feed socket connection
+  useEffect(() => {
+    if (activeTab !== 'live') {
+      // Leave admin-live room when switching away
+      if (socketRef.current && isLiveConnected) {
+        socketRef.current.emit('leave-admin-live');
+        setIsLiveConnected(false);
+      }
+      return;
+    }
+
+    const socket = connectSocket();
+    socketRef.current = socket;
+
+    const handleConnect = () => {
+      socket.emit('join-admin-live');
+    };
+
+    const handleAdminInit = (data) => {
+      setActiveSessions(data.activeSessions || []);
+      setIsLiveConnected(true);
+    };
+
+    const handleAdminEvent = (event) => {
+      // Update active sessions based on event type
+      if (event.type === 'user-joined-page') {
+        setActiveSessions(prev => {
+          // Remove existing session for this user/page combo, then add new one
+          const filtered = prev.filter(s => !(s.user_id === event.userId && s.page_id === event.pageId));
+          return [{
+            user_id: event.userId,
+            username: event.username,
+            cursor_color: event.cursorColor,
+            page_id: event.pageId,
+            page_title: event.pageTitle,
+            page_slug: event.pageSlug,
+            mode: event.mode,
+            last_activity: event.timestamp
+          }, ...filtered];
+        });
+      } else if (event.type === 'user-left-page' || event.type === 'user-disconnected') {
+        setActiveSessions(prev =>
+          prev.filter(s => !(s.user_id === event.userId && s.page_id === event.pageId))
+        );
+      } else if (event.type === 'draft-saved') {
+        // Update last_activity for the user's session
+        setActiveSessions(prev =>
+          prev.map(s =>
+            s.user_id === event.userId && s.page_id === event.pageId
+              ? { ...s, last_activity: event.timestamp }
+              : s
+          )
+        );
+      }
+
+      // Add event to the feed
+      setLiveEvents(prev => [event, ...prev].slice(0, maxEvents));
+    };
+
+    const handleDisconnect = () => {
+      setIsLiveConnected(false);
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('admin-init', handleAdminInit);
+    socket.on('admin-event', handleAdminEvent);
+    socket.on('disconnect', handleDisconnect);
+
+    if (socket.connected) {
+      socket.emit('join-admin-live');
+    } else {
+      socket.connect();
+    }
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('admin-init', handleAdminInit);
+      socket.off('admin-event', handleAdminEvent);
+      socket.off('disconnect', handleDisconnect);
+      socket.emit('leave-admin-live');
+    };
+  }, [activeTab, isLiveConnected]);
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -239,6 +330,12 @@ function AdminDashboard() {
           onClick={() => setActiveTab('export')}
         >
           Export
+        </button>
+        <button
+          className={`admin-tab ${activeTab === 'live' ? 'active' : ''}`}
+          onClick={() => setActiveTab('live')}
+        >
+          Live {isLiveConnected && <span className="live-indicator"></span>}
         </button>
       </div>
 
@@ -581,8 +678,92 @@ function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {activeTab === 'live' && (
+        <div className="admin-live">
+          <div className="admin-section">
+            <h2>
+              Active Sessions
+              <span className={`connection-status ${isLiveConnected ? 'connected' : 'disconnected'}`}>
+                {isLiveConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </h2>
+            {activeSessions.length === 0 ? (
+              <p className="no-sessions">No active editing sessions</p>
+            ) : (
+              <div className="active-sessions-grid">
+                {activeSessions.map((session, idx) => (
+                  <div key={`${session.user_id}-${session.page_id}-${idx}`} className="session-card">
+                    <div className="session-user">
+                      <span
+                        className="user-dot"
+                        style={{ backgroundColor: session.cursor_color || '#67c1f5' }}
+                      ></span>
+                      <strong>{session.username}</strong>
+                      <span className={`session-mode ${session.mode}`}>
+                        {session.mode === 'editing' ? 'editing' : 'viewing'}
+                      </span>
+                    </div>
+                    <div className="session-page">
+                      <a href={`/page/${session.page_slug}`}>{session.page_title}</a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="admin-section">
+            <h2>Live Activity Feed</h2>
+            {liveEvents.length === 0 ? (
+              <p className="no-events">No events yet. Activity will appear here in real-time.</p>
+            ) : (
+              <div className="live-events-feed">
+                {liveEvents.map((event, idx) => (
+                  <div key={`${event.timestamp}-${idx}`} className={`live-event event-${event.type}`}>
+                    <span className="event-time">
+                      {new Date(event.timestamp).toLocaleTimeString()}
+                    </span>
+                    <span className="event-icon">{getEventIcon(event.type)}</span>
+                    <span className="event-user">{event.username}</span>
+                    <span className="event-action">{getEventAction(event.type)}</span>
+                    <a href={`/page/${event.pageSlug}`} className="event-page">
+                      {event.pageTitle}
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+// Helper functions for event display
+function getEventIcon(type) {
+  switch (type) {
+    case 'user-joined-page': return '→';
+    case 'user-left-page': return '←';
+    case 'user-disconnected': return '⊗';
+    case 'draft-saved': return '💾';
+    case 'page-published': return '✓';
+    case 'page-reverted': return '↺';
+    default: return '•';
+  }
+}
+
+function getEventAction(type) {
+  switch (type) {
+    case 'user-joined-page': return 'joined';
+    case 'user-left-page': return 'left';
+    case 'user-disconnected': return 'disconnected from';
+    case 'draft-saved': return 'saved draft on';
+    case 'page-published': return 'published';
+    case 'page-reverted': return 'reverted';
+    default: return '';
+  }
 }
 
 export default AdminDashboard;
