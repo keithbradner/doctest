@@ -85,8 +85,20 @@ const initDB = async () => {
         previous_content TEXT,
         diff TEXT,
         user_id INTEGER REFERENCES users(id),
+        action_type VARCHAR(50) DEFAULT 'edit',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Add action_type column if it doesn't exist (for existing databases)
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                       WHERE table_name = 'page_history' AND column_name = 'action_type') THEN
+          ALTER TABLE page_history ADD COLUMN action_type VARCHAR(50) DEFAULT 'edit';
+        END IF;
+      END $$;
     `);
 
     // Create page comments table (for Talk pages)

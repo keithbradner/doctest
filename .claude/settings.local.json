@@ -34,7 +34,9 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(timeout /t 3)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm run test:revert:*)",
+      "Bash(npm run test:export:*)"
     ]
   }
 }

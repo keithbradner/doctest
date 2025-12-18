@@ -1017,6 +1017,29 @@ td {
   background: #88d0f7;
 }
 
+.history-revert-btn {
+  background: #4a5562;
+  border: none;
+  color: #FFFFFF;
+  padding: 6px 15px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+  margin-left: 8px;
+}
+
+.history-revert-btn:hover {
+  background: #5c6a7a;
+}
+
+.history-revert-btn:disabled {
+  background: #3a3f4a;
+  color: #666;
+  cursor: not-allowed;
+}
+
 .history-diff {
   padding: 20px;
 }
@@ -1363,6 +1386,27 @@ td {
 
 .admin-table a:hover {
   color: #67C1F5;
+}
+
+/* Action badges for history entries */
+.action-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-left: 8px;
+}
+
+.action-edit {
+  background: #3d4450;
+  color: #ACB5BE;
+}
+
+.action-revert {
+  background: #c7a31e;
+  color: #161920;
 }
 
 .admin-form {

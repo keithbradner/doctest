@@ -296,6 +296,17 @@ router.get('/images/:id', async (req, res) => {
   }
 });
 
+// List all images metadata (for export)
+router.get('/images', authenticate, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, filename, mime_type FROM images ORDER BY id');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching images list:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get page history
 router.get('/pages/:slug/history', async (req, res) => {
   try {
@@ -329,6 +340,54 @@ router.get('/pages/:slug/history', async (req, res) => {
     res.json(history);
   } catch (err) {
     console.error('Error fetching history:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Revert page to a specific history entry (protected)
+router.post('/pages/:slug/revert/:historyId', authenticate, async (req, res) => {
+  try {
+    const { slug, historyId } = req.params;
+
+    // Get the history entry
+    const historyResult = await pool.query(
+      `SELECT h.*, p.id as page_id, p.content as current_content, p.title as current_title
+       FROM page_history h
+       JOIN pages p ON h.page_id = p.id
+       WHERE h.id = $1 AND p.slug = $2 AND p.deleted_at IS NULL`,
+      [historyId, slug]
+    );
+
+    if (historyResult.rows.length === 0) {
+      return res.status(404).json({ error: 'History entry not found' });
+    }
+
+    const historyEntry = historyResult.rows[0];
+    const previousContent = historyEntry.current_content;
+    const previousTitle = historyEntry.current_title;
+
+    // Generate diff for the revert
+    const diff = generateDiff(previousContent, historyEntry.content);
+
+    // Update the page with the historical content
+    const result = await pool.query(
+      `UPDATE pages
+       SET title = $1, content = $2, updated_at = CURRENT_TIMESTAMP
+       WHERE slug = $3
+       RETURNING *`,
+      [historyEntry.title, historyEntry.content, slug]
+    );
+
+    // Record the revert in history
+    await pool.query(
+      `INSERT INTO page_history (page_id, title, content, previous_content, diff, user_id, action_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [historyEntry.page_id, historyEntry.title, historyEntry.content, previousContent, diff, req.userId, 'revert']
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error reverting page:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -727,6 +786,7 @@ router.get('/admin/analytics/recent-edits', authenticate, requireAdmin, async (r
       SELECT
         ph.id,
         ph.created_at,
+        ph.action_type,
         p.slug,
         p.title,
         u.username

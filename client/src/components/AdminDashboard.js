@@ -253,12 +253,77 @@ function AdminDashboard() {
       const response = await axios.get('/api/pages');
       const pages = response.data;
 
+      // Fetch images metadata
+      const imagesResponse = await axios.get('/api/images');
+      const imagesMetadata = imagesResponse.data;
+
+      // Create a map of image ID to metadata
+      const imageMap = {};
+      imagesMetadata.forEach(img => {
+        imageMap[img.id] = img;
+      });
+
       const zip = new JSZip();
+
+      // Track which images belong to which pages
+      const pageImages = {};
+
+      // Find image references in each page's content
+      const imageRefRegex = /\[img\]\/api\/images\/(\d+)\[\/img\]/gi;
 
       pages.forEach(page => {
         const filename = `${page.slug}.txt`;
         zip.file(filename, page.content);
+
+        // Find all image references in this page
+        let match;
+        const foundImages = new Set();
+        while ((match = imageRefRegex.exec(page.content)) !== null) {
+          const imageId = match[1];
+          if (imageMap[imageId]) {
+            foundImages.add(imageId);
+          }
+        }
+        // Reset regex lastIndex for next page
+        imageRefRegex.lastIndex = 0;
+
+        if (foundImages.size > 0) {
+          pageImages[page.slug] = Array.from(foundImages);
+        }
       });
+
+      // Fetch all unique images first, then add to appropriate folders
+      const uniqueImageIds = new Set();
+      for (const imageIds of Object.values(pageImages)) {
+        imageIds.forEach(id => uniqueImageIds.add(id));
+      }
+
+      // Fetch all images once
+      const imageDataCache = {};
+      for (const imageId of uniqueImageIds) {
+        try {
+          const imgResponse = await axios.get(`/api/images/${imageId}`, {
+            responseType: 'arraybuffer'
+          });
+          imageDataCache[imageId] = imgResponse.data;
+        } catch (imgErr) {
+          console.warn(`Failed to fetch image ${imageId}:`, imgErr);
+        }
+      }
+
+      // Add images to each page's folder
+      for (const [pageSlug, imageIds] of Object.entries(pageImages)) {
+        for (const imageId of imageIds) {
+          if (imageDataCache[imageId]) {
+            const metadata = imageMap[imageId];
+            const ext = metadata.mime_type.split('/')[1] || 'bin';
+            const filename = metadata.filename || `image-${imageId}.${ext}`;
+
+            // Add to page-specific folder
+            zip.file(`images/${pageSlug}/${filename}`, imageDataCache[imageId]);
+          }
+        }
+      }
 
       const blob = await zip.generateAsync({ type: 'blob' });
 
@@ -474,6 +539,7 @@ function AdminDashboard() {
                 <tr>
                   <th>Time</th>
                   <th>User</th>
+                  <th>Action</th>
                   <th>Page</th>
                 </tr>
               </thead>
@@ -482,6 +548,11 @@ function AdminDashboard() {
                   <tr key={edit.id}>
                     <td>{formatDate(edit.created_at)}</td>
                     <td>{edit.username}</td>
+                    <td>
+                      <span className={`action-badge action-${edit.action_type || 'edit'}`}>
+                        {edit.action_type === 'revert' ? 'Revert' : 'Edit'}
+                      </span>
+                    </td>
                     <td><a href={`/page/${edit.slug}`}>{edit.title}</a></td>
                   </tr>
                 ))}
@@ -671,9 +742,9 @@ function AdminDashboard() {
         <div>
           <div className="admin-section">
             <h2>Export All Pages</h2>
-            <p>Download all wiki pages as a zip file. Each page will be saved as a .txt file containing the raw BBCode content.</p>
+            <p>Download all wiki pages as a zip file. Each page will be saved as a .txt file containing the raw BBCode content. Images are included in the <code>images/</code> folder, organized by page slug.</p>
             <button className="save-btn" onClick={handleExportAllPages}>
-              Download All Pages (.zip)
+              Download All Pages &amp; Images (.zip)
             </button>
           </div>
         </div>

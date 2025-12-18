@@ -13,9 +13,11 @@
     "test:bbcode": "node tests/bbcode.test.js",
     "test:htmlbbcode": "node tests/htmlToBBCode.test.js",
     "test:deletion": "node tests/deletion.test.js",
+    "test:revert": "node tests/revert.test.js",
+    "test:export": "node tests/export.test.js",
     "test:collab": "node tests/collaboration.test.js",
     "test:tabs": "node tests/editorTabs.test.js",
-    "test:all": "npm run test:bbcode && npm run test:htmlbbcode && npm run test:tabs && npm run test && npm run test:deletion && npm run test:collab",
+    "test:all": "npm run test:bbcode && npm run test:htmlbbcode && npm run test:tabs && npm run test && npm run test:deletion && npm run test:revert && npm run test:export && npm run test:collab",
     "start": "node server/index.js",
     "postinstall": "cd client && npm install",
     "heroku-postbuild": "npm run build"

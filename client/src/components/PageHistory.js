@@ -6,6 +6,7 @@ function PageHistory({ slug }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedDiffs, setExpandedDiffs] = useState({});
+  const [reverting, setReverting] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,6 +30,22 @@ function PageHistory({ slug }) {
       ...prev,
       [historyId]: !prev[historyId]
     }));
+  };
+
+  const handleRevert = async (historyId) => {
+    if (!window.confirm('Are you sure you want to revert to this version? This will replace the current page content.')) {
+      return;
+    }
+
+    setReverting(historyId);
+    try {
+      await axios.post(`/api/pages/${slug}/revert/${historyId}`);
+      navigate(slug === 'welcome' ? '/' : `/page/${slug}`);
+    } catch (err) {
+      console.error('Error reverting:', err);
+      alert(err.response?.data?.error || 'Failed to revert page');
+      setReverting(null);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -120,12 +137,22 @@ function PageHistory({ slug }) {
               <div className="history-meta">
                 <span className="history-date">{formatDate(entry.created_at)}</span>
                 <span className="history-user">by {entry.username || 'Unknown'}</span>
+                {entry.action_type === 'revert' && (
+                  <span className="action-badge action-revert">Revert</span>
+                )}
               </div>
               <button
                 className="history-toggle-btn"
                 onClick={() => toggleDiff(entry.id)}
               >
                 {expandedDiffs[entry.id] ? 'Hide Changes' : 'Show Changes'}
+              </button>
+              <button
+                className="history-revert-btn"
+                onClick={() => handleRevert(entry.id)}
+                disabled={reverting !== null}
+              >
+                {reverting === entry.id ? 'Reverting...' : 'Revert'}
               </button>
             </div>
 
